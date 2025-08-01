@@ -23,8 +23,15 @@ html, body {
 	overflow: hidden;
 }
 
+body {
+	display: flex;
+	justify-content: center;
+}
+
 main {
+	flex-grow: 1;
 	height: 100%;
+	max-width: 1024px;
 	margin: 0;
 	padding: 0.5rem;
 	display: flex;

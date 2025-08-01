@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@xterm/xterm':
+        specifier: ^5.5.0
+        version: 5.5.0
       vite:
         specifier: ^7.0.4
         version: 7.0.6
@@ -273,6 +276,9 @@ packages:
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
 
+  '@xterm/xterm@5.5.0':
+    resolution: {integrity: sha512-hqJHYaQb5OptNunnyAnkHyM8aCjZ1MEIDTQu1iIbbTD/xops91NB5yq1ZK/dC2JDbVWtF23zUtl9JE2NqwT87A==}
+
   esbuild@0.25.8:
     resolution: {integrity: sha512-vVC0USHGtMi8+R4Kz8rt6JhEWLxsv9Rnu/lGYbPR8u47B+DCBksq9JarW0zOO7bs37hyOK1l2/oqtbciutL5+Q==}
     engines: {node: '>=18'}
@@ -501,6 +507,8 @@ snapshots:
     optional: true
 
   '@types/estree@1.0.8': {}
+
+  '@xterm/xterm@5.5.0': {}
 
   esbuild@0.25.8:
     optionalDependencies:

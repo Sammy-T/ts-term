@@ -9,28 +9,39 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/gorilla/websocket"
 )
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
 
 func main() {
 	var dev bool
-	var handler http.Handler
 
 	flag.BoolVar(&dev, "dev", false, "development mode")
 
 	flag.Parse()
 
-	if dev {
-		startDevServer()
-		handler = createDevHandler()
-	} else {
-		handler = http.FileServer(http.Dir("web/dist"))
-	}
+	handler := getHandler(dev)
 
 	log.Println("Starting Go server...")
 
 	http.Handle("/", handler)
+	http.HandleFunc("/term", wsHandler)
 
 	log.Fatal(http.ListenAndServe(":3000", nil))
+}
+
+func getHandler(dev bool) http.Handler {
+	if dev {
+		startDevServer()
+		return createDevHandler()
+	}
+
+	return http.FileServer(http.Dir("web/dist"))
 }
 
 func startDevServer() {
@@ -70,4 +81,32 @@ func createDevHandler() http.Handler {
 	proxy.ErrorHandler = errHandler
 
 	return proxy
+}
+
+func wsHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("received request %q\n", r.URL.Path)
+
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Fatalf("Websocket: %v", err)
+	}
+
+	go wsRead(conn)
+}
+
+func wsRead(conn *websocket.Conn) {
+	for {
+		msgType, p, err := conn.ReadMessage()
+		if err != nil {
+			log.Printf("Websocket read: %v\n", err)
+			return
+		}
+
+		switch msgType {
+		case websocket.TextMessage:
+			log.Printf("ws text: %q", string(p))
+		default:
+			log.Printf("ws type: %v, data: %v\n", msgType, p)
+		}
+	}
 }

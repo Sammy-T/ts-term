@@ -1,0 +1,38 @@
+# Normalize line endings for files detected as text
+*                 text=auto
+
+# Source
+*.go              text diff=golang
+*.json            text
+
+# Go module files
+*.mod             text eol=lf
+*.sum             text eol=lf
+
+# Documentation
+*.markdown        text diff=markdown
+*.md              text diff=markdown
+*.mdwn            text diff=markdown
+*.mdown           text diff=markdown
+*.mkd             text diff=markdown
+*.mkdn            text diff=markdown
+*.mdtxt           text
+*.mdtext          text
+*.txt             text
+AUTHORS           text
+CHANGELOG         text
+CHANGES           text
+CONTRIBUTING      text
+COPYING           text
+copyright         text
+*COPYRIGHT*       text
+INSTALL           text
+license           text
+LICENSE           text
+NEWS              text
+readme            text
+*README*          text
+TODO              text
+
+# Ignore files
+*.*ignore         text

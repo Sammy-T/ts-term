@@ -25,7 +25,7 @@ term.onData((data) => {
 });
 
 websocket.onopen = (ev) => {
-	term.write('WebSocket open. \r\n$ ');
+	term.write('\b\bWebSocket open. \r\n$ ');
 };
 
 window.addEventListener('resize', () => {

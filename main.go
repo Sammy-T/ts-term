@@ -100,7 +100,7 @@ func createDevHandler() http.Handler {
 }
 
 func wsHandler(w http.ResponseWriter, r *http.Request) {
-	log.Printf("received request %q\n", r.URL.Path)
+	log.Printf("Received request %q\n", r.URL.Path)
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -113,13 +113,6 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatalf("Pty: %v", err)
 	}
-
-	//// TODO: Close?
-	// defer func() {
-	// 	if closeErr := ptmx.Close(); closeErr != nil {
-	// 		log.Fatalf("ptmx: %v", closeErr)
-	// 	}
-	// }()
 
 	go ptyRead(ptmx, conn)
 	go wsRead(conn, ptmx)
@@ -145,6 +138,18 @@ func ptyRead(ptmx *os.File, conn *websocket.Conn) {
 // wsRead reads websocket input and writes it to the pty
 func wsRead(conn *websocket.Conn, ptmx *os.File) {
 	log.Println("Reading websocket.")
+
+	defer func() {
+		log.Println("Closing ws and pty.")
+
+		if err := conn.Close(); err != nil {
+			log.Fatalf("ws close: %v", err)
+		}
+
+		if err := ptmx.Close(); err != nil {
+			log.Fatalf("ptmx close: %v", err)
+		}
+	}()
 
 	for {
 		msgType, p, err := conn.ReadMessage()

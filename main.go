@@ -10,12 +10,15 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/creack/pty"
 	"github.com/gorilla/websocket"
 )
 
+const bufferSize int = 1024
+
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	ReadBufferSize:  bufferSize,
+	WriteBufferSize: bufferSize,
 }
 
 func main() {
@@ -91,10 +94,45 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("Websocket: %v", err)
 	}
 
-	go wsRead(conn)
+	cmd := exec.Command("bash")
+
+	ptmx, err := pty.Start(cmd)
+	if err != nil {
+		log.Fatalf("Pty: %v", err)
+	}
+
+	//// TODO: Close?
+	// defer func() {
+	// 	if closeErr := ptmx.Close(); closeErr != nil {
+	// 		log.Fatalf("ptmx: %v", closeErr)
+	// 	}
+	// }()
+
+	go ptyRead(ptmx, conn)
+	go wsRead(conn, ptmx)
 }
 
-func wsRead(conn *websocket.Conn) {
+// ptyRead reads pty output and writes it to the websocket
+func ptyRead(ptmx *os.File, conn *websocket.Conn) {
+	log.Println("Reading pty.")
+
+	b := make([]byte, bufferSize)
+
+	for {
+		n, err := ptmx.Read(b)
+		if err != nil {
+			log.Fatalf("read: %v", err)
+		}
+
+		// log.Printf("[%d] %q", n, b[:n])
+		conn.WriteMessage(websocket.TextMessage, b[:n])
+	}
+}
+
+// wsRead reads websocket input and writes it to the pty
+func wsRead(conn *websocket.Conn, ptmx *os.File) {
+	log.Println("Reading websocket.")
+
 	for {
 		msgType, p, err := conn.ReadMessage()
 		if err != nil {
@@ -104,7 +142,8 @@ func wsRead(conn *websocket.Conn) {
 
 		switch msgType {
 		case websocket.TextMessage:
-			log.Printf("ws text: %q", string(p))
+			// log.Printf("ws text: %v, %q", msgType, p)
+			ptmx.Write(p)
 		default:
 			log.Printf("ws type: %v, data: %v\n", msgType, p)
 		}

@@ -10,22 +10,19 @@ term.loadAddon(fitAddon);
 term.open(document.querySelector('#xterm-container'));
 fitAddon.fit();
 
-term.write('Hello from \x1B[1;3;31mxterm.js\x1B[0m \r\n$ ');
+term.write('Hello from \x1B[1;3;31mxterm.js\x1B[0m \r\n');
 
 term.onData((data) => {
 	websocket.send(data);
-
-	//// TODO: TEMP
-	term.write(data);
-	
-	if(data === '\r') {
-		term.write('\n$ ');
-	}
-	////
 });
 
 websocket.onopen = (ev) => {
-	term.write('\b\bWebSocket open. \r\n$ ');
+	term.write('WebSocket open.\r\n');
+};
+
+websocket.onmessage = (ev) => {
+	console.log(ev);
+	term.write(ev.data);
 };
 
 window.addEventListener('resize', () => {

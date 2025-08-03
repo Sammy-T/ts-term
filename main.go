@@ -131,7 +131,9 @@ func ptyRead(ptmx *os.File, conn *websocket.Conn) {
 		}
 
 		// log.Printf("[%d] %q", n, b[:n])
-		conn.WriteMessage(websocket.TextMessage, b[:n])
+		if err = conn.WriteMessage(websocket.TextMessage, b[:n]); err != nil {
+			log.Fatalf("ws write: %v", err)
+		}
 	}
 }
 

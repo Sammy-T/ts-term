@@ -55,11 +55,24 @@ func startDevServer() {
 		log.Fatalf("Current working directory: %v", err)
 	}
 
-	cmd := exec.Command("pnpm", "run", "dev")
-	cmd.Dir = filepath.Join(cwDir, "web")
+	cmdDir := filepath.Join(cwDir, "web")
+
+	cmdInst := exec.Command("npm", "i")
+	cmdInst.Dir = cmdDir
+	cmdInst.Stdout = os.Stdout
+	cmdInst.Stderr = os.Stderr
+
+	// Run install and await
+	if err = cmdInst.Run(); err != nil {
+		log.Fatalf("Npm install: %v", err)
+	}
+
+	cmd := exec.Command("npm", "run", "dev")
+	cmd.Dir = cmdDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
+	// Run dev without awaiting
 	if err = cmd.Start(); err != nil {
 		log.Fatalf("Vite dev server: %v", err)
 	}

@@ -29,6 +29,6 @@ window.addEventListener('resize', () => {
 	fitAddon.fit();
 });
 
-window.addEventListener('unload', () => {
+window.addEventListener('pagehide', () => {
 	websocket.close();
 });

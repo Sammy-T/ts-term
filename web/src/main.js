@@ -1,7 +1,8 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 
-const websocket = new WebSocket(`ws://${location.host}/term`);
+// const websocket = new WebSocket(`ws://${location.host}/term`);
+const websocket = new WebSocket(`ws://${location.host}/ts`);
 
 const term = new Terminal();
 const fitAddon = new FitAddon();
@@ -23,6 +24,11 @@ websocket.onopen = (ev) => {
 websocket.onmessage = (ev) => {
 	console.log(ev);
 	term.write(ev.data);
+};
+
+websocket.onclose = (ev) => {
+	console.log(ev);
+	term.write('Websocket closed.\r\n');
 };
 
 window.addEventListener('resize', () => {

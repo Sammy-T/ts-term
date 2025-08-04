@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"html"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -9,9 +11,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/creack/pty"
 	"github.com/gorilla/websocket"
+	"tailscale.com/client/local"
+	"tailscale.com/tsnet"
 )
 
 const bufferSize int = 1024
@@ -28,17 +33,15 @@ func main() {
 
 	flag.Parse()
 
-	handler := getHandler(dev)
+	http.Handle("/", getWebHandler(dev))
+	// http.HandleFunc("/term", wsHandler)
+	http.HandleFunc("/ts", tsHandler)
 
 	log.Println("Starting Go server...")
-
-	http.Handle("/", handler)
-	http.HandleFunc("/term", wsHandler)
-
 	log.Fatal(http.ListenAndServe(":3000", nil))
 }
 
-func getHandler(dev bool) http.Handler {
+func getWebHandler(dev bool) http.Handler {
 	if dev {
 		startDevServer()
 		return createDevHandler()
@@ -116,6 +119,88 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 
 	go ptyRead(ptmx, conn)
 	go wsRead(conn, ptmx)
+}
+
+func tsHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Received request %q\n", r.URL.Path)
+
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Fatalf("Websocket: %v", err)
+	}
+
+	server := &tsnet.Server{
+		Ephemeral: true,
+	}
+	defer server.Close()
+
+	listener, err := server.Listen("tcp", ":80")
+	if err != nil {
+		log.Fatalf("ts listener: %v", err)
+	}
+	defer listener.Close()
+
+	client, err := server.LocalClient()
+	if err != nil {
+		log.Fatalf("ts client: %v", err)
+	}
+
+	go pollStatus(r, server, client, conn)
+
+	log.Println("Starting TS server...")
+	log.Fatal(http.Serve(listener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		who, err := client.WhoIs(r.Context(), r.RemoteAddr)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		fmt.Fprintf(w, "<html><body><h1>Hello, %s.</h1><p>From <b>%s</b> (%s).</p></body></html>",
+			html.EscapeString(who.UserProfile.DisplayName),
+			html.EscapeString(who.Node.ComputedName),
+			r.RemoteAddr,
+		)
+	})))
+}
+
+func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, conn *websocket.Conn) {
+	var authDelivered bool
+
+	for i := 0; i < 500; i++ {
+		status, err := client.Status(r.Context())
+		if err != nil {
+			log.Fatalf("ts status %q: %v", status.BackendState, err)
+		}
+
+		switch status.BackendState {
+		case "NeedsLogin":
+			if authDelivered || status.AuthURL == "" {
+				break
+			}
+
+			msg := fmt.Sprintf("Auth required. Go to: %v\r\n", status.AuthURL)
+
+			if err = conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+				log.Fatalf("ws write status %q: %v", status.BackendState, err)
+			}
+
+			authDelivered = true
+		case "Running":
+			tsIp4, tsIp6 := server.TailscaleIPs()
+			hostname := status.Self.HostName
+
+			msg := fmt.Sprintf("Tailscale machine %v at %v %v\r\n", hostname, tsIp4, tsIp6)
+
+			if err = conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+				log.Fatalf("ws write status %q: %v", status.BackendState, err)
+			}
+
+			conn.Close()
+			return
+		}
+
+		time.Sleep(1 * time.Second)
+	}
 }
 
 // ptyRead reads pty output and writes it to the websocket

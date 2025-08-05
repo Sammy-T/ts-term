@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"html"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -11,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/creack/pty"
@@ -26,22 +26,21 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: bufferSize,
 }
 
-func main() {
-	var dev bool
+var dev bool
 
+func main() {
 	flag.BoolVar(&dev, "dev", false, "development mode")
 
 	flag.Parse()
 
-	http.Handle("/", getWebHandler(dev))
-	// http.HandleFunc("/term", wsHandler)
+	http.Handle("/", getWebHandler())
 	http.HandleFunc("/ts", tsHandler)
 
 	log.Println("Starting Go server...")
 	log.Fatal(http.ListenAndServe(":3000", nil))
 }
 
-func getWebHandler(dev bool) http.Handler {
+func getWebHandler() http.Handler {
 	if dev {
 		startDevServer()
 		return createDevHandler()
@@ -102,25 +101,6 @@ func createDevHandler() http.Handler {
 	return proxy
 }
 
-func wsHandler(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Received request %q\n", r.URL.Path)
-
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Fatalf("Websocket: %v", err)
-	}
-
-	cmd := exec.Command("bash")
-
-	ptmx, err := pty.Start(cmd)
-	if err != nil {
-		log.Fatalf("Pty: %v", err)
-	}
-
-	go ptyRead(ptmx, conn)
-	go wsRead(conn, ptmx)
-}
-
 func tsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Received request %q\n", r.URL.Path)
 
@@ -148,19 +128,90 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 	go pollStatus(r, server, client, conn)
 
 	log.Println("Starting TS server...")
-	log.Fatal(http.Serve(listener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		who, err := client.WhoIs(r.Context(), r.RemoteAddr)
+	log.Fatal(http.Serve(listener, getTsServerHandler(server, client)))
+}
+
+func getTsServerHandler(server *tsnet.Server, client *local.Client) http.Handler {
+	checkOrigin := func(r *http.Request) bool {
+		if dev {
+			return true
+		}
+
+		status, err := client.Status(r.Context())
 		if err != nil {
-			http.Error(w, err.Error(), 500)
+			log.Fatalf("ts status %q: %v", status.BackendState, err)
+		}
+
+		tsIp4, tsIp6 := server.TailscaleIPs()
+		hostname := status.Self.HostName
+
+		validOriginHosts := []string{hostname, tsIp4.String(), tsIp6.String()}
+
+		host := r.Host
+		origin := r.Header.Get("Origin")
+		reqUrl, err := url.Parse(origin)
+		var oHost string
+		if err == nil {
+			oHost = reqUrl.Host
+		}
+
+		log.Printf("Check origin\nhost: %q\norigin: %q\noHost: %q\n", host, origin, oHost)
+
+		return host == oHost || slices.Contains(validOriginHosts, oHost)
+	}
+
+	tsUpgrader := websocket.Upgrader{
+		ReadBufferSize:  bufferSize,
+		WriteBufferSize: bufferSize,
+		CheckOrigin:     checkOrigin,
+	}
+
+	h := func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Received request %q\n", r.URL.Path)
+
+		conn, err := tsUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Printf("Websocket: %v", err)
 			return
 		}
 
-		fmt.Fprintf(w, "<html><body><h1>Hello, %s.</h1><p>From <b>%s</b> (%s).</p></body></html>",
-			html.EscapeString(who.UserProfile.DisplayName),
-			html.EscapeString(who.Node.ComputedName),
+		status, err := client.Status(r.Context())
+		if err != nil {
+			log.Printf("ts status: %v", err)
+			return
+		}
+
+		who, err := client.WhoIs(r.Context(), r.RemoteAddr)
+		if err != nil {
+			log.Printf("ts who: %v", err)
+			return
+		}
+
+		msg := fmt.Sprintf("Connected to %v as %v from %v (%v).\r\n",
+			status.Self.HostName,
+			who.UserProfile.DisplayName,
+			who.Node.ComputedName,
 			r.RemoteAddr,
 		)
-	})))
+
+		if err = conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+			log.Printf("ws write: %v", err)
+			return
+		}
+
+		cmd := exec.Command("bash")
+
+		ptmx, err := pty.Start(cmd)
+		if err != nil {
+			log.Printf("pty: %v", err)
+			return
+		}
+
+		go ptyRead(ptmx, conn)
+		go wsRead(conn, ptmx)
+	}
+
+	return http.HandlerFunc(h)
 }
 
 func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, conn *websocket.Conn) {

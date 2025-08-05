@@ -45,3 +45,7 @@ main {
 .xterm {
 	padding: 0.5rem;
 }
+
+.xterm-viewport {
+	scrollbar-width: thin;
+}

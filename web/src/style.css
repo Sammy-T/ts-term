@@ -24,12 +24,15 @@ html, body {
 }
 
 body {
+	background: #031e33;
+	background: linear-gradient(142deg, rgba(3, 30, 51, 1) 12%, rgba(9, 91, 121, 1) 52%, rgba(77, 0, 26, 1) 94%);
 	display: flex;
 	justify-content: center;
 }
 
 h1 {
 	margin: 0.5rem 0;
+	opacity: 0.7;
 }
 
 main {
@@ -46,6 +49,9 @@ main {
 #xterm-container {
 	flex-grow: 1;
 	max-height: 50dvh;
+	border-radius: 0.35rem;
+	overflow: hidden;
+	opacity: 0.83;
 }
 
 .xterm {

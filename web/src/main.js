@@ -26,12 +26,12 @@ function connectInitWs() {
 
 	websocket.onclose = (ev) => {
 		console.log(ev);
-		term.write('Init Websocket closed.\r\n');
+		term.write('Init WebSocket closed.\r\n');
 	};
 
 	websocket.onerror = (ev) => {
 		console.log(ev);
-		term.write('Init Websocket error.\r\n');
+		term.write('Init WebSocket error.\r\n');
 	}
 
 	window.addEventListener('pagehide', () => {
@@ -41,6 +41,13 @@ function connectInitWs() {
 
 function connectTsWs(url) {
 	const websocket = new WebSocket(url);
+
+	/**
+	 * Tracks the newline status of received server data output to the terminal UI.
+	 * 
+	 * Server output will usually contain a newline but returned PTY output might not.
+	 */
+	let isOnNewline = true;
 
 	term.onData((data) => {
 		websocket.send(data);
@@ -53,16 +60,26 @@ function connectTsWs(url) {
 	websocket.onmessage = (ev) => {
 		console.log(ev);
 		term.write(ev.data);
+
+		isOnNewline = ev.data.endsWith('\n');
 	};
 
 	websocket.onclose = (ev) => {
 		console.log(ev);
-		term.write('Tailscale Websocket closed.\r\n');
+
+		const msg = 'Tailscale WebSocket closed.\r\n';
+		term.write((isOnNewline) ? msg : `\r\n${msg}`);
+
+		isOnNewline = true;
 	};
 
 	websocket.onerror = (ev) => {
 		console.log(ev);
-		term.write('Tailscale Websocket error.\r\n');
+
+		const msg = 'Tailscale WebSocket error.\r\n';
+		term.write((isOnNewline) ? msg : `\r\n${msg}`);
+
+		isOnNewline = true;
 	}
 
 	window.addEventListener('pagehide', () => {

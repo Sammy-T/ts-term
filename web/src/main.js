@@ -73,7 +73,7 @@ term.loadAddon(fitAddon);
 term.open(document.querySelector('#xterm-container'));
 fitAddon.fit();
 
-term.write('Hello from \x1B[1;3;31mxterm.js\x1B[0m \r\n');
+term.write('Welcome to \x1B[1;3;32mts-term\x1B[0m \r\n');
 
 window.addEventListener('resize', () => {
 	fitAddon.fit();

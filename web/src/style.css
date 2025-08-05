@@ -28,6 +28,10 @@ body {
 	justify-content: center;
 }
 
+h1 {
+	margin: 0.5rem 0;
+}
+
 main {
 	flex-grow: 1;
 	height: 100%;
@@ -36,10 +40,12 @@ main {
 	padding: 0.5rem;
 	display: flex;
 	flex-direction: column;
+	justify-content: center;
 }
 
 #xterm-container {
 	flex-grow: 1;
+	max-height: 50dvh;
 }
 
 .xterm {

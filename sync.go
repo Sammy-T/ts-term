@@ -30,7 +30,7 @@ func ptyToWs(ptmx *os.File, conn *websocket.Conn) {
 //
 // NOTE: The WebSocket and PTY are closed when the Websocket
 // connection errors or closes.
-func wsToPty(conn *websocket.Conn, ptmx *os.File) {
+func wsToPty(conn *websocket.Conn, ptmx *os.File, onClosed func()) {
 	log.Println("Reading websocket.")
 
 	defer func() {
@@ -42,6 +42,10 @@ func wsToPty(conn *websocket.Conn, ptmx *os.File) {
 
 		if err := ptmx.Close(); err != nil {
 			log.Fatalf("ptmx close: %v", err)
+		}
+
+		if onClosed != nil {
+			onClosed()
 		}
 	}()
 

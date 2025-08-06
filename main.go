@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os/exec"
 
@@ -51,6 +52,9 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("Websocket: %v", err)
 	}
 
+	//// TODO: Create hostname
+	//// TODO: Create temp dir
+
 	//// TODO: Create single session server
 	server := &tsnet.Server{
 		Ephemeral: true,
@@ -61,7 +65,6 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatalf("ts listener: %v", err)
 	}
-	defer listener.Close()
 
 	client, err := server.LocalClient()
 	if err != nil {
@@ -71,10 +74,10 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 	go pollStatus(r, server, client, conn)
 
 	log.Println("Starting TS server...")
-	log.Fatal(http.Serve(listener, getTsServerHandler(server, client)))
+	log.Printf("ts server: %v", http.Serve(listener, getTsServerHandler(listener, server, client)))
 }
 
-func getTsServerHandler(server *tsnet.Server, client *local.Client) http.Handler {
+func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *local.Client) http.Handler {
 	tsUpgrader := createUpgraderTs(server, client)
 
 	h := func(w http.ResponseWriter, r *http.Request) {
@@ -118,8 +121,14 @@ func getTsServerHandler(server *tsnet.Server, client *local.Client) http.Handler
 			return
 		}
 
+		//// TODO: On ws close, cleanup temp dir & close listener?
+		onWsClosed := func() {
+			log.Println("Closing net listener.")
+			listener.Close()
+		}
+
 		go ptyToWs(ptmx, conn)
-		go wsToPty(conn, ptmx)
+		go wsToPty(conn, ptmx, onWsClosed)
 	}
 
 	return http.HandlerFunc(h)

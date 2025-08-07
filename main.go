@@ -86,18 +86,21 @@ func getTsServerHandler(listener net.Listener, client *local.Client) http.Handle
 		conn, err := tsUpgrader.Upgrade(w, r, nil)
 		if err != nil {
 			log.Printf("Websocket: %v", err)
+			listener.Close()
 			return
 		}
 
+		cLog := connLog{conn, listener}
+
 		status, err := client.Status(r.Context())
 		if err != nil {
-			log.Printf("ts status: %v", err)
+			cLog.LessFatalf("ts status: %v", err)
 			return
 		}
 
 		who, err := client.WhoIs(r.Context(), r.RemoteAddr)
 		if err != nil {
-			log.Printf("ts who: %v", err)
+			cLog.LessFatalf("ts who: %v", err)
 			return
 		}
 
@@ -109,7 +112,7 @@ func getTsServerHandler(listener net.Listener, client *local.Client) http.Handle
 		)
 
 		if err = conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
-			log.Printf("ws write: %v", err)
+			cLog.LessFatalf("ws write: %v", err)
 			return
 		}
 
@@ -117,7 +120,7 @@ func getTsServerHandler(listener net.Listener, client *local.Client) http.Handle
 
 		ptmx, err := pty.Start(cmd)
 		if err != nil {
-			log.Printf("pty: %v", err)
+			cLog.LessFatalf("pty: %v", err)
 			return
 		}
 

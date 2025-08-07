@@ -73,19 +73,20 @@ func createUpgraderTs(client *local.Client) websocket.Upgrader {
 		validOriginHosts := getTailnetAddresses(status)
 
 		host := r.Host
-		origin := r.Header.Get("Origin")
-		reqUrl, err := url.Parse(origin)
-		var oHost string
+		originHdr := r.Header.Get("Origin")
+		var origin string
+
+		parsedOrigin, err := url.Parse(originHdr)
 		if err == nil {
 			// Reconstruct the request origin's host ignoring the port
 			// since we're allowing any machine in the tailnet
 			// to host the frontend.
-			oHost = strings.Split(reqUrl.Host, ":")[0]
+			origin = strings.Split(parsedOrigin.Host, ":")[0]
 		}
 
-		log.Printf("Check origin\nhost: %q\norigin: %q\noHost: %q\n", host, origin, oHost)
+		log.Printf("Check origin\nhost: %q\noriginHdr: %q\norigin: %q\n", host, originHdr, origin)
 
-		return host == oHost || slices.Contains(validOriginHosts, oHost)
+		return host == origin || slices.Contains(validOriginHosts, origin)
 	}
 
 	tsUpgrader := websocket.Upgrader{

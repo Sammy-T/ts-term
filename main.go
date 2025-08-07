@@ -149,13 +149,12 @@ func getTsServerHandler(hostname string, listener net.Listener, client *local.Cl
 			return
 		}
 
-		onWsClosed := func() {
-			log.Println("Closing net listener.")
+		onClosed := func() {
 			listener.Close()
 		}
 
-		go ptyToWs(ptmx, conn)
-		go wsToPty(conn, ptmx, onWsClosed)
+		go ptyToWs(ptmx, conn, onClosed)
+		go wsToPty(conn, ptmx, onClosed)
 	}
 
 	return http.HandlerFunc(h)

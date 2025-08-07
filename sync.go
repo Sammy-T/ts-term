@@ -8,20 +8,31 @@ import (
 )
 
 // ptyToWs reads PTY output and writes it to the WebSocket.
-func ptyToWs(ptmx *os.File, conn *websocket.Conn) {
+func ptyToWs(ptmx *os.File, conn *websocket.Conn, onClosed func()) {
 	log.Println("Reading pty.")
+
+	defer func() {
+		conn.Close()
+		ptmx.Close()
+
+		if onClosed != nil {
+			onClosed()
+		}
+	}()
 
 	b := make([]byte, bufferSize)
 
 	for {
 		n, err := ptmx.Read(b)
 		if err != nil {
-			log.Fatalf("read: %v", err)
+			log.Printf("read: %v", err)
+			return
 		}
 
 		// log.Printf("[%d] %q", n, b[:n])
 		if err = conn.WriteMessage(websocket.TextMessage, b[:n]); err != nil {
-			log.Fatalf("ws write: %v", err)
+			log.Printf("ws write: %v", err)
+			return
 		}
 	}
 }
@@ -34,15 +45,8 @@ func wsToPty(conn *websocket.Conn, ptmx *os.File, onClosed func()) {
 	log.Println("Reading websocket.")
 
 	defer func() {
-		log.Println("Closing ws and pty.")
-
-		if err := conn.Close(); err != nil {
-			log.Fatalf("ws close: %v", err)
-		}
-
-		if err := ptmx.Close(); err != nil {
-			log.Fatalf("ptmx close: %v", err)
-		}
+		conn.Close()
+		ptmx.Close()
 
 		if onClosed != nil {
 			onClosed()

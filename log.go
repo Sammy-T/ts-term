@@ -23,14 +23,14 @@ func (c connLog) LessFatalf(format string, v ...any) {
 	msg := fmt.Sprintf(format, v...)
 
 	if err := c.conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
-		log.Fatalf("connlog conn write: %v", err)
+		log.Printf("connlog conn write: %v", err)
 	}
 
 	if err := c.conn.Close(); err != nil {
-		log.Fatalf("connlog conn close: %v", err)
+		log.Printf("connlog conn close: %v", err)
 	}
 
 	if err := c.listener.Close(); err != nil {
-		log.Fatalf("connlog listener close: %v", err)
+		log.Printf("connlog listener close: %v", err)
 	}
 }

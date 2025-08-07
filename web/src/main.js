@@ -65,7 +65,7 @@ function connectTsWs(url) {
 		console.log(ev);
 		term.write(ev.data);
 
-		isOnNewline = ev.data.endsWith('\n');
+		isOnNewline = ev.data.endsWith('\r\n');
 	};
 
 	tsWs.onclose = (ev) => {

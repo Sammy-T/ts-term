@@ -91,15 +91,19 @@ function connectTsWs(url) {
 	});
 }
 
+const termContainer = document.querySelector('#xterm-container');
+
 term.loadAddon(fitAddon);
 term.loadAddon(new WebLinksAddon());
-term.open(document.querySelector('#xterm-container'));
+term.open(termContainer);
 fitAddon.fit();
 
-term.write('Welcome to \x1B[1;3;32mts-term\x1B[0m \r\n');
-
-window.addEventListener('resize', () => {
+const rsObserver = new ResizeObserver(() => {
 	fitAddon.fit();
 });
+
+rsObserver.observe(termContainer);
+
+term.write('Welcome to \x1B[1;3;32mts-term\x1B[0m \r\n');
 
 connectInitWs();

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"slices"
@@ -29,10 +30,10 @@ func createHostName() string {
 
 // pollStatus polls the status of the TS server until the server is running
 // and outputs relevant status info to the WebSocket.
-func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, conn *websocket.Conn) {
+func pollStatus(listener net.Listener, r *http.Request, server *tsnet.Server, client *local.Client, conn *websocket.Conn) {
 	var authDelivered bool
 
-	for i := 0; i < 500; i++ {
+	for i := 0; i < 600; i++ {
 		status, err := client.Status(r.Context())
 		if err != nil {
 			log.Fatalf("ts status %q: %v", status.BackendState, err)
@@ -52,6 +53,10 @@ func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, con
 
 			authDelivered = true
 		case "Running":
+			// Waiting a bit might prevent the frontend from initiating
+			// the ts WebSocket connection too quickly.
+			time.Sleep(1 * time.Second)
+
 			tsIp4, tsIp6 := server.TailscaleIPs()
 			hostname := status.Self.HostName
 
@@ -60,6 +65,7 @@ func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, con
 			if err = conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
 				log.Fatalf("ws write status %q: %v", status.BackendState, err)
 			}
+			log.Print(msg)
 
 			conn.Close()
 			return
@@ -67,6 +73,16 @@ func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, con
 
 		time.Sleep(1 * time.Second)
 	}
+
+	msg := fmt.Sprintf("%v init timed out.\r\n", server.Hostname)
+
+	if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+		log.Fatalf("ws write: %v", err)
+	}
+	log.Print(msg)
+
+	conn.Close()
+	listener.Close()
 }
 
 // createUpgraderTs creates a WebSocket Upgrader with a CheckOrigin function

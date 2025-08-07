@@ -80,7 +80,7 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("ts client: %v", err)
 	}
 
-	go pollStatus(r, server, client, conn)
+	go pollStatus(listener, r, server, client, conn)
 
 	log.Printf("Serving %v server\n", hostname)
 	log.Printf("%v server: %v", hostname, http.Serve(listener, getTsServerHandler(hostname, listener, client)))

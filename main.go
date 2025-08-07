@@ -31,8 +31,10 @@ func main() {
 	http.Handle("/", getWebHandler())
 	http.HandleFunc("/ts", tsHandler)
 
-	log.Println("Starting Go server...")
-	log.Fatal(http.ListenAndServe(":3000", nil))
+	addr := ":3000"
+
+	log.Printf("Serving ts-term on %v\n", addr)
+	log.Fatal(http.ListenAndServe(addr, nil))
 }
 
 func getWebHandler() http.Handler {
@@ -73,7 +75,7 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 
 	go pollStatus(r, server, client, conn)
 
-	log.Println("Starting TS server...")
+	log.Println("Serving TS server")
 	log.Printf("ts server: %v", http.Serve(listener, getTsServerHandler(listener, client)))
 }
 

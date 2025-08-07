@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
 
 	"github.com/creack/pty"
@@ -54,11 +55,17 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("Websocket: %v", err)
 	}
 
-	//// TODO: Create hostname
-	//// TODO: Create temp dir
+	hostname := createHostName()
 
-	//// TODO: Create single session server
+	dir, err := os.MkdirTemp("", "tsnet-"+hostname)
+	if err != nil {
+		log.Fatalf("mkdir: %v\n", err)
+	}
+	defer os.RemoveAll(dir)
+
 	server := &tsnet.Server{
+		Hostname:  hostname,
+		Dir:       dir,
 		Ephemeral: true,
 	}
 	defer server.Close()
@@ -75,15 +82,15 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 
 	go pollStatus(r, server, client, conn)
 
-	log.Println("Serving TS server")
-	log.Printf("ts server: %v", http.Serve(listener, getTsServerHandler(listener, client)))
+	log.Printf("Serving %v server\n", hostname)
+	log.Printf("%v server: %v", hostname, http.Serve(listener, getTsServerHandler(hostname, listener, client)))
 }
 
-func getTsServerHandler(listener net.Listener, client *local.Client) http.Handler {
+func getTsServerHandler(hostname string, listener net.Listener, client *local.Client) http.Handler {
 	tsUpgrader := createUpgraderTs(client)
 
 	h := func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Received request TS %q\n", r.URL.Path)
+		log.Printf("Received request %v %q\n", hostname, r.URL.Path)
 
 		conn, err := tsUpgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -126,7 +133,6 @@ func getTsServerHandler(listener net.Listener, client *local.Client) http.Handle
 			return
 		}
 
-		//// TODO: On ws close, cleanup temp dir & close listener?
 		onWsClosed := func() {
 			log.Println("Closing net listener.")
 			listener.Close()

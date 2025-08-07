@@ -9,11 +9,23 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"tailscale.com/client/local"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tsnet"
 )
+
+func createHostName() string {
+	uuid, err := uuid.NewV7()
+	if err != nil {
+		log.Fatalf("uuid: %v\n", err)
+	}
+
+	idSplit := strings.Split(uuid.String(), "-")
+
+	return "ts-term-" + idSplit[len(idSplit)-1]
+}
 
 // pollStatus polls the status of the TS server until the server is running
 // and outputs relevant status info to the WebSocket.

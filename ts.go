@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"tailscale.com/client/local"
+	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tsnet"
 )
 
@@ -57,7 +59,7 @@ func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, con
 
 // createUpgraderTs creates a WebSocket Upgrader with a CheckOrigin function
 // that verifies requests against the provided Tailscale server.
-func createUpgraderTs(server *tsnet.Server, client *local.Client) websocket.Upgrader {
+func createUpgraderTs(client *local.Client) websocket.Upgrader {
 	checkOrigin := func(r *http.Request) bool {
 		if dev {
 			return true
@@ -68,17 +70,17 @@ func createUpgraderTs(server *tsnet.Server, client *local.Client) websocket.Upgr
 			log.Fatalf("ts status %q: %v", status.BackendState, err)
 		}
 
-		tsIp4, tsIp6 := server.TailscaleIPs()
-		hostname := status.Self.HostName
-
-		validOriginHosts := []string{hostname, tsIp4.String(), tsIp6.String()}
+		validOriginHosts := getTailnetAddresses(status)
 
 		host := r.Host
 		origin := r.Header.Get("Origin")
 		reqUrl, err := url.Parse(origin)
 		var oHost string
 		if err == nil {
-			oHost = reqUrl.Host
+			// Reconstruct the request origin's host ignoring the port
+			// since we're allowing any machine in the tailnet
+			// to host the frontend.
+			oHost = strings.Split(reqUrl.Host, ":")[0]
 		}
 
 		log.Printf("Check origin\nhost: %q\norigin: %q\noHost: %q\n", host, origin, oHost)
@@ -93,4 +95,32 @@ func createUpgraderTs(server *tsnet.Server, client *local.Client) websocket.Upgr
 	}
 
 	return tsUpgrader
+}
+
+// getTailnetAddresses returns all the Tailscale domains and IP addresses
+// on the Tailnet.
+func getTailnetAddresses(status *ipnstate.Status) []string {
+	domain := status.Self.DNSName
+	shortDomain := strings.Split(domain, ".")[0]
+	tsIps := status.TailscaleIPs
+
+	addresses := []string{domain, shortDomain}
+
+	for _, ip := range tsIps {
+		addresses = append(addresses, ip.String())
+	}
+
+	for _, peerStatus := range status.Peer {
+		domain = peerStatus.DNSName
+		shortDomain = strings.Split(domain, ".")[0]
+		tsIps = peerStatus.TailscaleIPs
+
+		addresses = append(addresses, domain, shortDomain)
+
+		for _, ip := range tsIps {
+			addresses = append(addresses, ip.String())
+		}
+	}
+
+	return addresses
 }

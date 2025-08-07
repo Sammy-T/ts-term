@@ -74,14 +74,14 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 	go pollStatus(r, server, client, conn)
 
 	log.Println("Starting TS server...")
-	log.Printf("ts server: %v", http.Serve(listener, getTsServerHandler(listener, server, client)))
+	log.Printf("ts server: %v", http.Serve(listener, getTsServerHandler(listener, client)))
 }
 
-func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *local.Client) http.Handler {
-	tsUpgrader := createUpgraderTs(server, client)
+func getTsServerHandler(listener net.Listener, client *local.Client) http.Handler {
+	tsUpgrader := createUpgraderTs(client)
 
 	h := func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Received request %q\n", r.URL.Path)
+		log.Printf("Received request TS %q\n", r.URL.Path)
 
 		conn, err := tsUpgrader.Upgrade(w, r, nil)
 		if err != nil {

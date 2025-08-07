@@ -80,7 +80,23 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("ts client: %v", err)
 	}
 
-	go pollStatus(listener, r, server, client, conn)
+	go func() {
+		defer conn.Close()
+
+		if err := pollStatus(r, server, client, conn); err != nil {
+			log.Printf("poll status: %v\n", err)
+			listener.Close()
+			return
+		}
+
+		if err := awaitTsWsConnection(conn); err != nil {
+			log.Printf("%v conn await: %v\n", hostname, err)
+			listener.Close()
+			return
+		}
+
+		log.Printf("%v websocket connected to client.\n", hostname)
+	}()
 
 	log.Printf("Serving %v server\n", hostname)
 	log.Printf("%v server: %v", hostname, http.Serve(listener, getTsServerHandler(hostname, listener, client)))

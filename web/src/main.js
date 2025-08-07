@@ -5,16 +5,19 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 const term = new Terminal();
 const fitAddon = new FitAddon();
 
+/** @type {WebSocket} */
+let initWs;
+
 function connectInitWs() {
-	const websocket = new WebSocket(`ws://${location.host}/ts`);
+	initWs = new WebSocket(`ws://${location.host}/ts`);
 
 	const machineMsg = 'Tailscale machine';
 
-	websocket.onopen = (ev) => {
+	initWs.onopen = (ev) => {
 		term.write('Init WebSocket open.\r\n');
 	};
 
-	websocket.onmessage = (ev) => {
+	initWs.onmessage = (ev) => {
 		console.log(ev);
 		term.write(ev.data);
 
@@ -24,23 +27,23 @@ function connectInitWs() {
 		}
 	};
 
-	websocket.onclose = (ev) => {
+	initWs.onclose = (ev) => {
 		console.log(ev);
 		term.write('Init WebSocket closed.\r\n');
 	};
 
-	websocket.onerror = (ev) => {
+	initWs.onerror = (ev) => {
 		console.log(ev);
 		term.write('Init WebSocket error.\r\n');
 	}
 
 	window.addEventListener('pagehide', () => {
-		websocket.close();
+		initWs.close();
 	});
 }
 
 function connectTsWs(url) {
-	const websocket = new WebSocket(url);
+	const tsWs = new WebSocket(url);
 
 	/**
 	 * Tracks the newline status of received server data output to the terminal UI.
@@ -50,21 +53,22 @@ function connectTsWs(url) {
 	let isOnNewline = true;
 
 	term.onData((data) => {
-		websocket.send(data);
+		tsWs.send(data);
 	});
 
-	websocket.onopen = (ev) => {
+	tsWs.onopen = (ev) => {
+		initWs.send('ts-websocket-opened');
 		term.write('Tailscale WebSocket open.\r\n');
 	};
 
-	websocket.onmessage = (ev) => {
+	tsWs.onmessage = (ev) => {
 		console.log(ev);
 		term.write(ev.data);
 
 		isOnNewline = ev.data.endsWith('\n');
 	};
 
-	websocket.onclose = (ev) => {
+	tsWs.onclose = (ev) => {
 		console.log(ev);
 
 		const msg = 'Tailscale WebSocket closed.\r\n';
@@ -73,17 +77,17 @@ function connectTsWs(url) {
 		isOnNewline = true;
 	};
 
-	websocket.onerror = (ev) => {
+	tsWs.onerror = (ev) => {
 		console.log(ev);
+
+		initWs.send('ts-websocket-error');
 
 		const msg = 'Tailscale WebSocket error.\r\n';
 		term.write((isOnNewline) ? msg : `\r\n${msg}`);
-
-		isOnNewline = true;
 	}
 
 	window.addEventListener('pagehide', () => {
-		websocket.close();
+		tsWs.close();
 	});
 }
 

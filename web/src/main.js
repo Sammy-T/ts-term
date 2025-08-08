@@ -67,6 +67,8 @@ function connectTsWs(url) {
 	tsWs.onopen = (ev) => {
 		initWs.send('ts-websocket-opened');
 		term.write('Tailscale WebSocket open.\r\n');
+
+		onSize();
 	};
 
 	tsWs.onmessage = (ev) => {
@@ -99,12 +101,37 @@ function connectTsWs(url) {
 	});
 }
 
+function onSize() {
+	const { rows, cols } = term;
+	const { clientWidth, clientHeight } = termScreen;
+	console.log(`rows: ${rows}, cols: ${cols}, width: ${clientWidth}, height: ${clientHeight}`);
+
+	if(!tsWs) return;
+
+	const msg = {
+		type: 'size',
+		data: JSON.stringify({ rows, cols, x: clientWidth, y: clientHeight }),
+	};
+
+	tsWs.send(JSON.stringify(msg))
+}
+
 const termContainer = document.querySelector('#xterm-container');
 
 term.loadAddon(fitAddon);
 term.loadAddon(new WebLinksAddon());
 term.open(termContainer);
 fitAddon.fit();
+
+const termScreen = termContainer.querySelector('.xterm-screen');
+
+/** @type {Number} */
+let tid;
+
+term.onResize(({ rows, cols }) => {
+	clearTimeout(tid);
+	tid = setTimeout(() => onSize(), 500);
+});
 
 const rsObserver = new ResizeObserver(() => {
 	fitAddon.fit();

@@ -48,7 +48,7 @@ main {
 
 #xterm-container {
 	flex-grow: 1;
-	max-height: 65dvh;
+	max-height: 50dvh;
 	border-radius: 0.35rem;
 	overflow: hidden;
 	opacity: 0.83;

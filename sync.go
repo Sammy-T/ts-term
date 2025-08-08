@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"os"
 
+	"github.com/creack/pty"
 	"github.com/gorilla/websocket"
 )
 
@@ -13,6 +15,9 @@ type wsMessage struct {
 }
 
 // ptyToWs reads PTY output and writes it to the WebSocket.
+//
+// NOTE: The WebSocket and PTY are closed when the PTY
+// errors or closes.
 func ptyToWs(ptmx *os.File, conn *websocket.Conn, onClosed func()) {
 	log.Println("Reading pty.")
 
@@ -70,6 +75,18 @@ func wsToPty(conn *websocket.Conn, ptmx *os.File, onClosed func()) {
 		case "input":
 			// log.Printf("ws text: %v, %q", msg.Type, msg.Data)
 			ptmx.Write([]byte(msg.Data))
+		case "size":
+			log.Printf("size %v\n", msg.Data)
+
+			var size pty.Winsize
+			if err := json.Unmarshal([]byte(msg.Data), &size); err != nil {
+				log.Printf("size: %v\n", err)
+				break
+			}
+
+			if err := pty.Setsize(ptmx, &size); err != nil {
+				log.Printf("set size: %v\n", err)
+			}
 		default:
 			log.Printf("ws type: %v, data: %q\n", msg.Type, msg.Data)
 		}

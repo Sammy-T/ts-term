@@ -7,6 +7,11 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+type wsMessage struct {
+	Type string `json:"type"`
+	Data string `json:"data"`
+}
+
 // ptyToWs reads PTY output and writes it to the WebSocket.
 func ptyToWs(ptmx *os.File, conn *websocket.Conn, onClosed func()) {
 	log.Println("Reading pty.")
@@ -54,18 +59,19 @@ func wsToPty(conn *websocket.Conn, ptmx *os.File, onClosed func()) {
 	}()
 
 	for {
-		msgType, p, err := conn.ReadMessage()
-		if err != nil {
+		var msg wsMessage
+
+		if err := conn.ReadJSON(&msg); err != nil {
 			log.Printf("Websocket read: %v\n", err)
 			return
 		}
 
-		switch msgType {
-		case websocket.TextMessage:
-			// log.Printf("ws text: %v, %q", msgType, p)
-			ptmx.Write(p)
+		switch msg.Type {
+		case "input":
+			// log.Printf("ws text: %v, %q", msg.Type, msg.Data)
+			ptmx.Write([]byte(msg.Data))
 		default:
-			log.Printf("ws type: %v, data: %v\n", msgType, p)
+			log.Printf("ws type: %v, data: %q\n", msg.Type, msg.Data)
 		}
 	}
 }

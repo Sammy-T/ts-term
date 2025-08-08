@@ -8,6 +8,9 @@ const fitAddon = new FitAddon();
 /** @type {WebSocket} */
 let initWs;
 
+/** @type {WebSocket} */
+let tsWs;
+
 function connectInitWs() {
 	initWs = new WebSocket(`ws://${location.host}/ts`);
 
@@ -43,7 +46,7 @@ function connectInitWs() {
 }
 
 function connectTsWs(url) {
-	const tsWs = new WebSocket(url);
+	tsWs = new WebSocket(url);
 
 	/**
 	 * Tracks the newline status of received server data output to the terminal UI.
@@ -53,7 +56,12 @@ function connectTsWs(url) {
 	let isOnNewline = true;
 
 	term.onData((data) => {
-		tsWs.send(data);
+		const msg = {
+			type: 'input',
+			data
+		};
+
+		tsWs.send(JSON.stringify(msg));
 	});
 
 	tsWs.onopen = (ev) => {

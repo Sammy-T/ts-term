@@ -11,6 +11,7 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/gorilla/websocket"
+	"github.com/joho/godotenv"
 	"tailscale.com/client/local"
 	"tailscale.com/tsnet"
 )
@@ -25,6 +26,8 @@ var upgrader = websocket.Upgrader{
 var dev bool
 
 func main() {
+	godotenv.Load()
+
 	flag.BoolVar(&dev, "dev", false, "development mode")
 
 	flag.Parse()
@@ -32,7 +35,10 @@ func main() {
 	http.Handle("/", getWebHandler())
 	http.HandleFunc("/ts", tsHandler)
 
-	addr := ":3000"
+	addr := os.Getenv("TS_TERM_ADDR")
+	if addr == "" {
+		addr = ":3000"
+	}
 
 	log.Printf("Serving ts-term on %v\n", addr)
 	log.Fatal(http.ListenAndServe(addr, nil))
@@ -63,10 +69,13 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer os.RemoveAll(dir)
 
+	controlUrl := os.Getenv("TS_CONTROL_URL")
+
 	server := &tsnet.Server{
-		Hostname:  hostname,
-		Dir:       dir,
-		Ephemeral: true,
+		Hostname:   hostname,
+		Dir:        dir,
+		Ephemeral:  true,
+		ControlURL: controlUrl,
 	}
 	defer server.Close()
 

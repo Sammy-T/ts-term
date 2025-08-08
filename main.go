@@ -98,8 +98,10 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("%v websocket connected to client.\n", hostname)
 	}()
 
-	log.Printf("Serving %v server\n", hostname)
-	log.Printf("%v server: %v", hostname, http.Serve(listener, getTsServerHandler(hostname, listener, client)))
+	log.Printf("Running %v server\n", hostname)
+
+	err = http.Serve(listener, getTsServerHandler(hostname, listener, client))
+	log.Printf("%v server closed: %v", hostname, err)
 }
 
 func getTsServerHandler(hostname string, listener net.Listener, client *local.Client) http.Handler {

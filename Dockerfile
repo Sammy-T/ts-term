@@ -1,16 +1,48 @@
 # syntax=docker/dockerfile:1
 
-# Comments are provided throughout this file to help you get started.
-# If you need more help, visit the Dockerfile reference guide at
-# https://docs.docker.com/go/dockerfile-reference/
+ARG GO_VERSION=1.24.6
 
-# Want to help us make this template better? Share your feedback here: https://forms.gle/ybq9Krt8jtBL3iCk7
+## Node
+################################################################################
+# Use node image for base image
+ARG NODE_VERSION=22.13.1
+FROM node:${NODE_VERSION}-alpine AS base-node
+WORKDIR /app/web
+
+################################################################################
+# Create a stage for installing production dependecies.
+FROM base-node AS deps-node
+
+# Download dependencies as a separate step to take advantage of Docker's caching.
+# Leverage a cache mount to /root/.npm to speed up subsequent builds.
+# Leverage bind mounts to package.json and package-lock.json to avoid having to copy them
+# into this layer.
+RUN --mount=type=bind,source=web/package.json,target=package.json \
+    --mount=type=bind,source=web/package-lock.json,target=package-lock.json \
+    --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev
 
 ################################################################################
 # Create a stage for building the application.
-ARG GO_VERSION=1.24.6
-FROM --platform=$BUILDPLATFORM golang:${GO_VERSION} AS build
-WORKDIR /src
+FROM deps-node AS build-node
+
+# Download additional development dependencies before building, as some projects require
+# "devDependencies" to be installed to build. If you don't need this, remove this step.
+RUN --mount=type=bind,source=web/package.json,target=package.json \
+    --mount=type=bind,source=web/package-lock.json,target=package-lock.json \
+    --mount=type=cache,target=/root/.npm \
+    npm ci
+
+# Copy the rest of the source files into the image.
+COPY web .
+# Run the build script.
+RUN npm run build
+
+## Go
+################################################################################
+# Create a stage for building the application.
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION} AS build-go
+WORKDIR /app
 
 # Download dependencies as a separate step to take advantage of Docker's caching.
 # Leverage a cache mount to /go/pkg/mod/ to speed up subsequent builds.
@@ -38,13 +70,12 @@ RUN --mount=type=cache,target=/go/pkg/mod/ \
 # runtime dependencies for the application. This often uses a different base
 # image from the build stage where the necessary files are copied from the build
 # stage.
-#
-# The example below uses the alpine image as the foundation for running the app.
-# By specifying the "latest" tag, it will also use whatever happens to be the
-# most recent version of that image when you build your Dockerfile. If
-# reproducibility is important, consider using a versioned tag
-# (e.g., alpine:3.17.2) or SHA (e.g., alpine@sha256:c41ab5c992deb4fe7e5da09f67a8804a46bd0592bfdf0b1847dde0e0889d2bff).
 FROM alpine:latest AS final
+WORKDIR /app
+
+# Configure terminal color
+ENV TERM=xterm-256color
+ENV PS1="\e[92m\u\e[0m@\e[94m\h\e[0m:\e[35m\w\e[0m$ "
 
 # Install any runtime dependencies that are needed to run your application.
 # Leverage a cache mount to /var/cache/apk/ to speed up subsequent builds.
@@ -52,6 +83,9 @@ RUN --mount=type=cache,target=/var/cache/apk \
     apk --update add \
         ca-certificates \
         tzdata \
+        bash \
+        curl \
+        openssh-client \
         && \
         update-ca-certificates
 
@@ -68,11 +102,18 @@ RUN adduser \
     appuser
 USER appuser
 
+COPY web/package.json /web
+
+# Copy the production dependencies from the deps stage and also
+# the built application from the build stage into the image.
+COPY --from=deps-node /app/web/node_modules web/node_modules
+COPY --from=build-node /app/web/dist web/dist
+
 # Copy the executable from the "build" stage.
-COPY --from=build /bin/server /bin/
+COPY --from=build-go /bin/server .
 
 # Expose the port that the application listens on.
 EXPOSE 3000
 
 # What the container should run when it is started.
-ENTRYPOINT [ "/bin/server" ]
+ENTRYPOINT [ "/app/server" ]

@@ -38,6 +38,7 @@ COPY web .
 # Run the build script.
 RUN npm run build
 
+
 ## Go
 ################################################################################
 # Create a stage for building the application.
@@ -65,6 +66,8 @@ RUN --mount=type=cache,target=/go/pkg/mod/ \
     --mount=type=bind,target=. \
     CGO_ENABLED=0 GOARCH=$TARGETARCH go build -o /bin/server .
 
+
+## App
 ################################################################################
 # Create a new stage for running the application that contains the minimal
 # runtime dependencies for the application. This often uses a different base
@@ -102,13 +105,12 @@ RUN adduser \
     appuser
 USER appuser
 
-COPY web/package.json /web
+COPY web/package.json web/
 
-# Copy the production dependencies from the deps stage and also
-# the built application from the build stage into the image.
-COPY --from=build-node /app/web/dist web/dist
+# Copy the built node application from the "build-node" stage into the image.
+COPY --from=build-node /app/web/dist web/dist/
 
-# Copy the executable from the "build" stage.
+# Copy the executable from the "build-go" stage.
 COPY --from=build-go /bin/server .
 
 # Expose the port that the application listens on.

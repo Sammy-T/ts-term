@@ -106,7 +106,6 @@ COPY web/package.json /web
 
 # Copy the production dependencies from the deps stage and also
 # the built application from the build stage into the image.
-COPY --from=deps-node /app/web/node_modules web/node_modules
 COPY --from=build-node /app/web/dist web/dist
 
 # Copy the executable from the "build" stage.

@@ -25,13 +25,14 @@ var upgrader = websocket.Upgrader{
 
 var dev bool
 
-func main() {
+func init() {
 	godotenv.Load()
 
 	flag.BoolVar(&dev, "dev", false, "development mode")
-
 	flag.Parse()
+}
 
+func main() {
 	http.Handle("/", getWebHandler())
 	http.HandleFunc("/ts", tsHandler)
 

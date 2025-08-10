@@ -103,6 +103,9 @@ RUN adduser \
     appuser
 USER appuser
 
+# Create the ssh directory. (It can optionally be persisted to volume.)
+RUN mkdir /home/appuser/.ssh
+
 COPY web/package.json web/
 
 # Copy the built node application from the "build-node" stage into the image.

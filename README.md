@@ -1,6 +1,6 @@
 # ts-term
 
-ts-term is a browser-based terminal interface which uses ephemeral Tailscale nodes for each session. It allows you to run commands using the pseudo-terminal of the machine it's hosted on.
+ts-term serves a browser-based terminal interface and uses ephemeral Tailscale nodes for each session. It allows you to run commands using the pseudo-terminal of the machine it's hosted on.
 
 > [!IMPORTANT]
 > ts-term doesn't directly create SSH connections. Once connected to the terminal, you must run the `ssh` command to connect to the machine you want to remote into.
@@ -28,11 +28,11 @@ Close the window or type `exit` while not using ssh to end the session.
 
 | Option | Description |
 | --- | --- |
-| `-d`, `--detach` | Run the container in the background. |
-| `-p`, `--publish` | Publish the container's port to the host. The host port can be whichever available port you want.<br>`<host-port>:<container-port>` |
-| `-h`, `--hostname` | The container host name. (optional) |
+| `-d, --detach` | Run the container in the background. |
+| `-p, --publish` | Publish the container's port to the host. The host port can be whichever available port you want.<br>`<host-port>:<container-port>` |
+| `-h, --hostname` | The container host name. (optional) |
 | `--name` | The container name (optional) |
-| `-v`, `--volume` | The volume for persistent data. (recommended) |
+| `-v, --volume` | The container volume for persistent data. (recommended) |
 | `--env-file` | Read in a file of environment variables. (optional) |
 
 See <https://docs.docker.com/reference/cli/docker/container/run/> for full reference.
@@ -48,7 +48,8 @@ See <https://docs.docker.com/reference/cli/docker/container/run/> for full refer
 
 ### Run the dev server
 
-ts-term requires a Linux environment to run. If you're on Windows, you can use WSL.
+> [!IMPORTANT]
+> ts-term requires a Linux environment to run. If you're on Windows, you can use WSL.
 
 Requirements:
 

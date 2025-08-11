@@ -25,8 +25,9 @@ function connectInitWs() {
 		term.write(ev.data);
 
 		if(ev.data.startsWith(machineMsg)) {
+			const proto = (location.protocol === 'https:') ? 'wss:' : 'ws:';
 			const hostname = ev.data.split(' ').at(2);
-			connectTsWs(`ws://${hostname}`)
+			connectTsWs(`${proto}//${hostname}`)
 		}
 	};
 

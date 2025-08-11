@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"log"
@@ -8,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/creack/pty"
 	"github.com/gorilla/websocket"
@@ -61,6 +63,7 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatalf("Websocket: %v", err)
 	}
+	defer conn.Close()
 
 	hostname := createHostName()
 
@@ -80,14 +83,30 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer server.Close()
 
-	listener, err := server.Listen("tcp", ":80")
-	if err != nil {
-		log.Fatalf("ts listener: %v", err)
+	tsAddr := ":80"
+	if strings.HasPrefix(r.Header["Origin"][0], "https:") {
+		tsAddr = ":443"
 	}
+
+	listener, err := server.Listen("tcp", tsAddr)
+	if err != nil {
+		log.Printf("ts listener: %v\n", err)
+		return
+	}
+	defer listener.Close()
 
 	client, err := server.LocalClient()
 	if err != nil {
-		log.Fatalf("ts client: %v", err)
+		log.Printf("ts client: %v\n", err)
+		return
+	}
+
+	if tsAddr == ":443" {
+		log.Println("Enabling tsnet TLS. HTTPS Certificates must be enabled in the admin panel for this to work.")
+
+		listener = tls.NewListener(listener, &tls.Config{
+			GetCertificate: client.GetCertificate,
+		})
 	}
 
 	go func() {

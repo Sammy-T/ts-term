@@ -12,6 +12,8 @@ ts-term is intended to be hosted from inside a Docker container on a machine in 
 [Tailscale SSH](https://tailscale.com/kb/1193/tailscale-ssh) and their [SSH Console](https://tailscale.com/kb/1216/tailscale-ssh-console) are great tools for remote access to machines on your tailnet. If they suit your needs, I definitely recommend them.<br>
 However, I wanted something I could self-host and which didn't take over my machine's `ssh` command so I made this project.
 
+<img width="1607" height="832" alt="Screenshot 2025-08-11 073307" src="https://github.com/user-attachments/assets/9fabd24c-9fd6-4fdb-bb6b-c5594eafb78d" />
+
 ## Getting Started
 
 Pull and run the container with the command:

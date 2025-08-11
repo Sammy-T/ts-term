@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="32"
+   height="32"
+   viewBox="0 0 32 32"
+   version="1.1"
+   id="svg1"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1">
+    <linearGradient
+       id="linearGradient185">
+      <stop
+         style="stop-color:#00ff66;stop-opacity:0;"
+         offset="0"
+         id="stop185" />
+      <stop
+         style="stop-color:#00ff66;stop-opacity:1;"
+         offset="1"
+         id="stop186" />
+    </linearGradient>
+    <linearGradient
+       id="linearGradient183">
+      <stop
+         style="stop-color:#000000;stop-opacity:1;"
+         offset="0"
+         id="stop183" />
+      <stop
+         style="stop-color:#247aa5;stop-opacity:1;"
+         offset="1"
+         id="stop184" />
+    </linearGradient>
+    <linearGradient
+       xlink:href="#linearGradient183"
+       id="linearGradient184"
+       x1="0.20434232"
+       y1="16"
+       x2="31.795658"
+       y2="16"
+       gradientUnits="userSpaceOnUse" />
+    <linearGradient
+       xlink:href="#linearGradient185"
+       id="linearGradient186"
+       x1="4.9531908"
+       y1="16.154993"
+       x2="25.277424"
+       y2="16.154993"
+       gradientUnits="userSpaceOnUse" />
+  </defs>
+  <g
+     id="layer1">
+    <rect
+       style="fill:url(#linearGradient184);stroke-width:1"
+       id="rect1"
+       width="31.591316"
+       height="31.591316"
+       x="0.20434232"
+       y="0.20434232"
+       ry="6.2528739"
+       rx="6.2528739" />
+    <path
+       style="fill:url(#linearGradient186)"
+       d="M 4.9531907,6.8335291 V 25.476458 L 25.277423,17.249685 v -2.587453 z"
+       id="path184" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:52.7294px;line-height:1.25;font-family:'Miriam Libre';-inkscape-font-specification:'Miriam Libre';text-align:center;text-anchor:middle;opacity:1;fill:#ffffff;stroke-width:1"
+       x="15.96138"
+       y="31.159702"
+       id="text182"
+       transform="translate(0.03861453)"><tspan
+         id="tspan182"
+         x="15.96138"
+         y="31.159702"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Miriam Libre';-inkscape-font-specification:'Miriam Libre';stroke-width:1">&gt;</tspan></text>
+  </g>
+</svg>

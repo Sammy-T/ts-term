@@ -61,3 +61,19 @@ main {
 .xterm-viewport {
 	scrollbar-width: thin;
 }
+
+footer {
+	& a {
+		text-decoration: none;
+		color: white;
+		opacity: 0.5;
+
+		& svg {
+			vertical-align: bottom;
+		}
+	}
+
+	& a:hover {
+		opacity: 0.85;
+	}
+}

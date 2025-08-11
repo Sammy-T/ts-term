@@ -1,3 +1,4 @@
+import ghLogo from './brand-github.svg?raw';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
@@ -116,6 +117,10 @@ function onSize() {
 
 	tsWs.send(JSON.stringify(msg))
 }
+
+// Add the GH logo into the footer link
+const ghAnchor = document.querySelector('#gh');
+ghAnchor.innerHTML = `${ghLogo} ${ghAnchor.innerHTML}`;
 
 const termContainer = document.querySelector('#xterm-container');
 

@@ -58,7 +58,13 @@ Requirements:
 
 Create a `.env` file in the project root if you want to customize ts-term. See [environment variables](#environment-variables).
 
-Run the dev server:
+#### Add Go dependencies
+
+```bash
+go get .
+```
+
+#### Run the dev server
 
 ```bash
 go run . -dev

@@ -61,7 +61,7 @@ Create a `.env` file in the project root if you want to customize ts-term. See [
 #### Add Go dependencies
 
 ```bash
-go get .
+go get ./...
 ```
 
 #### Run the dev server

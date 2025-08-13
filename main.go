@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -8,12 +9,12 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"strings"
+	"time"
 
-	"github.com/creack/pty"
 	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
+	"golang.org/x/crypto/ssh"
 	"tailscale.com/client/local"
 	"tailscale.com/tsnet"
 )
@@ -129,11 +130,11 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Running %v server\n", hostname)
 
-	err = http.Serve(listener, getTsServerHandler(hostname, listener, client))
+	err = http.Serve(listener, getTsServerHandler(listener, hostname, server, client))
 	log.Printf("%v server closed: %v", hostname, err)
 }
 
-func getTsServerHandler(hostname string, listener net.Listener, client *local.Client) http.Handler {
+func getTsServerHandler(listener net.Listener, hostname string, server *tsnet.Server, client *local.Client) http.Handler {
 	tsUpgrader := createUpgraderTs(client)
 
 	h := func(w http.ResponseWriter, r *http.Request) {
@@ -172,20 +173,60 @@ func getTsServerHandler(hostname string, listener net.Listener, client *local.Cl
 			return
 		}
 
-		cmd := exec.Command("bash")
+		//// TODO: TEMP
+		username := os.Getenv("SSH_USER")
+		password := os.Getenv("SSH_PWD")
+		addr := os.Getenv("SSH_ADDR")
 
-		ptmx, err := pty.Start(cmd)
+		config := &ssh.ClientConfig{
+			User: username,
+			Auth: []ssh.AuthMethod{
+				ssh.Password(password),
+			},
+			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		}
+
+		tsConn, err := server.Dial(r.Context(), "tcp", addr)
 		if err != nil {
-			cLog.LessFatalf("pty: %v", err)
+			cLog.LessFatalf("ts dial: %v", err)
 			return
 		}
 
-		onClosed := func() {
-			listener.Close()
+		sshConn, newChan, reqs, err := ssh.NewClientConn(tsConn, addr, config)
+		if err != nil {
+			cLog.LessFatalf("n client: %v", err)
+			return
 		}
 
-		go ptyToWs(ptmx, conn, onClosed)
-		go wsToPty(conn, ptmx, onClosed)
+		sshClient := ssh.NewClient(sshConn, newChan, reqs)
+		defer sshClient.Close()
+
+		session, err := sshClient.NewSession()
+		if err != nil {
+			cLog.LessFatalf("sess: %v", err)
+			return
+		}
+		defer session.Close()
+
+		var out bytes.Buffer
+		session.Stdout = &out
+
+		if err = session.Run("/usr/bin/whoami"); err != nil {
+			cLog.LessFatalf("run: %v", err)
+			return
+		}
+
+		if err = conn.WriteMessage(websocket.TextMessage, out.Bytes()); err != nil {
+			cLog.LessFatalf("ws write: %v", err)
+			return
+		}
+
+		log.Printf("ssh out: %q\n", out.String())
+
+		time.Sleep(1 * time.Second)
+
+		conn.Close()
+		listener.Close()
 	}
 
 	return http.HandlerFunc(h)

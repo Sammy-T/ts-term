@@ -79,7 +79,7 @@ footer {
 }
 
 dialog {
-	padding: 2rem 1.5rem;
+	padding: 2rem;
 	border-radius: 1rem;
 	border: 2px solid light-dark(black,rgba(255, 255, 255, 0.373));
 	background-color: light-dark(rgb(247, 251, 255), rgba(5, 8, 12, 0.711));
@@ -89,8 +89,12 @@ dialog {
 		margin-bottom: 1rem;
 	}
 
+	& fieldset {
+		margin: 0.5rem 0;
+	}
+
 	& button {
-		margin-top: 0.85rem;
+		margin-top: 0.5rem;
 		padding: 0.25rem 1rem;
 		border: none;
 		border-radius: 0.15rem;

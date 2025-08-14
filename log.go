@@ -6,12 +6,13 @@ import (
 	"net"
 
 	"github.com/gorilla/websocket"
+	ws "github.com/sammy-t/ts-term/internal/websocket"
 )
 
 // connLog is a helper to output to the log and close the associated
 // Websocket connection and net listener.
 type connLog struct {
-	conn     *websocket.Conn
+	conn     *ws.SyncedWebsocket
 	listener net.Listener
 }
 

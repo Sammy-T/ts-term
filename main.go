@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
+	ws "github.com/sammy-t/ts-term/internal/websocket"
 	"golang.org/x/crypto/ssh"
 	"tailscale.com/client/local"
 	"tailscale.com/tsnet"
@@ -139,11 +140,18 @@ func getTsServerHandler(listener net.Listener, hostname string, server *tsnet.Se
 	h := func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Received request %v %q\n", hostname, r.URL.Path)
 
-		conn, err := tsUpgrader.Upgrade(w, r, nil)
+		wsConn, err := tsUpgrader.Upgrade(w, r, nil)
 		if err != nil {
 			log.Printf("Websocket: %v", err)
 			listener.Close()
 			return
+		}
+
+		// Wrap the WebSocket in a sync helper
+		// since both PTY 'read' and 'error' write to the WebSocket.
+		conn := &ws.SyncedWebsocket{
+			Conn: wsConn,
+			Mu:   &sync.Mutex{},
 		}
 
 		cLog := connLog{conn, listener}
@@ -226,12 +234,8 @@ func getTsServerHandler(listener net.Listener, hostname string, server *tsnet.Se
 			listener.Close()
 		}
 
-		// Sync the writes to the WebSocket with a Mutex
-		// since both PTY 'read' and 'error' write to it.
-		var wsMu sync.Mutex
-
-		go ptyErrToWs(session, conn, &wsMu, onClosed)
-		go ptyToWs(session, conn, &wsMu, onClosed)
+		go ptyErrToWs(session, conn, onClosed)
+		go ptyToWs(session, conn, onClosed)
 		go wsToPty(conn, session, onClosed)
 
 		if err = session.Shell(); err != nil {
@@ -246,17 +250,12 @@ func getTsServerHandler(listener net.Listener, hostname string, server *tsnet.Se
 			return
 		}
 
-		wsMu.Lock()
-
 		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 
 		if err = conn.WriteMessage(websocket.CloseMessage, closeMsg); err != nil {
-			wsMu.Unlock()
 			cLog.LessFatalf("ws close: %v", err)
 			return
 		}
-
-		wsMu.Unlock()
 
 		listener.Close()
 	}

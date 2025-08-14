@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/json"
 	"log"
-	"sync"
 
 	"github.com/gorilla/websocket"
+	ws "github.com/sammy-t/ts-term/internal/websocket"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -25,7 +25,7 @@ type winSize struct {
 //
 // NOTE: The WebSocket and PTY are closed when the PTY
 // errors or closes.
-func ptyErrToWs(session *ssh.Session, conn *websocket.Conn, wsMu *sync.Mutex, onClosed func()) {
+func ptyErrToWs(session *ssh.Session, conn *ws.SyncedWebsocket, onClosed func()) {
 	log.Println("Reading pty err...")
 
 	defer func() {
@@ -56,16 +56,11 @@ func ptyErrToWs(session *ssh.Session, conn *websocket.Conn, wsMu *sync.Mutex, on
 			continue
 		}
 
-		wsMu.Lock()
-
 		// log.Printf("read err [%d] %q", n, b[:n])
 		if err = conn.WriteMessage(websocket.TextMessage, b[:n]); err != nil {
-			wsMu.Unlock()
 			log.Printf("ws write: %v", err)
 			return
 		}
-
-		wsMu.Unlock()
 	}
 }
 
@@ -73,7 +68,7 @@ func ptyErrToWs(session *ssh.Session, conn *websocket.Conn, wsMu *sync.Mutex, on
 //
 // NOTE: The WebSocket and PTY are closed when the PTY
 // errors or closes.
-func ptyToWs(session *ssh.Session, conn *websocket.Conn, wsMu *sync.Mutex, onClosed func()) {
+func ptyToWs(session *ssh.Session, conn *ws.SyncedWebsocket, onClosed func()) {
 	log.Println("Reading pty...")
 
 	defer func() {
@@ -104,16 +99,11 @@ func ptyToWs(session *ssh.Session, conn *websocket.Conn, wsMu *sync.Mutex, onClo
 			continue
 		}
 
-		wsMu.Lock()
-
 		// log.Printf("read [%d] %q", n, b[:n])
 		if err = conn.WriteMessage(websocket.TextMessage, b[:n]); err != nil {
-			wsMu.Unlock()
 			log.Printf("ws write: %v", err)
 			return
 		}
-
-		wsMu.Unlock()
 	}
 }
 
@@ -121,7 +111,7 @@ func ptyToWs(session *ssh.Session, conn *websocket.Conn, wsMu *sync.Mutex, onClo
 //
 // NOTE: The WebSocket and PTY are closed when the Websocket
 // connection errors or closes.
-func wsToPty(conn *websocket.Conn, session *ssh.Session, onClosed func()) {
+func wsToPty(conn *ws.SyncedWebsocket, session *ssh.Session, onClosed func()) {
 	log.Println("Reading websocket...")
 
 	defer func() {

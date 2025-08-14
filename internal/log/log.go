@@ -1,4 +1,4 @@
-package main
+package log
 
 import (
 	"fmt"
@@ -11,27 +11,27 @@ import (
 
 // connLog is a helper to output to the log and close the associated
 // Websocket connection and net listener.
-type connLog struct {
-	conn     *ws.SyncedWebsocket
-	listener net.Listener
+type ConnLog struct {
+	Conn     *ws.SyncedWebsocket
+	Listener net.Listener
 }
 
 // LessFatalf writes the error to the log and WebSocket.
 // Then closes the WebSocket and net listener.
-func (c connLog) LessFatalf(format string, v ...any) {
+func (c ConnLog) LessFatalf(format string, v ...any) {
 	log.Printf(format, v...)
 
 	msg := fmt.Sprintf(format, v...)
 
-	if err := c.conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+	if err := c.Conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
 		log.Printf("connlog conn write: %v", err)
 	}
 
-	if err := c.conn.Close(); err != nil {
+	if err := c.Conn.Close(); err != nil {
 		log.Printf("connlog conn close: %v", err)
 	}
 
-	if err := c.listener.Close(); err != nil {
+	if err := c.Listener.Close(); err != nil {
 		log.Printf("connlog listener close: %v", err)
 	}
 }

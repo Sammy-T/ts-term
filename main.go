@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
+	cnLog "github.com/sammy-t/ts-term/internal/log"
 	ws "github.com/sammy-t/ts-term/internal/websocket"
 	"golang.org/x/crypto/ssh"
 	"tailscale.com/client/local"
@@ -154,7 +155,10 @@ func getTsServerHandler(listener net.Listener, hostname string, server *tsnet.Se
 			Mu:   &sync.Mutex{},
 		}
 
-		cLog := connLog{conn, listener}
+		cLog := cnLog.ConnLog{
+			Conn:     conn,
+			Listener: listener,
+		}
 
 		status, err := client.Status(r.Context())
 		if err != nil {

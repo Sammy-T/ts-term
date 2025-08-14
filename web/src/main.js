@@ -28,7 +28,9 @@ function connectInitWs() {
 		if(ev.data.startsWith(machineMsg)) {
 			const proto = (location.protocol === 'https:') ? 'wss:' : 'ws:';
 			const hostname = ev.data.split(' ').at(2);
-			connectTsWs(`${proto}//${hostname}`)
+
+			// Wait before attempting connection.
+			setTimeout(() => connectTsWs(`${proto}//${hostname}`), 1000);
 		}
 	};
 

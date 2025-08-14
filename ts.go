@@ -53,10 +53,6 @@ func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, con
 
 			authDelivered = true
 		case "Running":
-			// Waiting a bit might prevent the frontend from initiating
-			// the ts WebSocket connection too quickly.
-			time.Sleep(1 * time.Second)
-
 			tsIp4, tsIp6 := server.TailscaleIPs()
 			hostname := status.Self.HostName
 

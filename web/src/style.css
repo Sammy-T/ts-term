@@ -13,6 +13,9 @@
 	text-rendering: optimizeLegibility;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+
+	--dialog-color: light-dark(rgb(247, 251, 255), rgba(5, 8, 12, 0.711));
+	--dialog-border-color: light-dark(black,rgba(255, 255, 255, 0.373));
 }
 
 html, body {
@@ -33,6 +36,40 @@ body {
 h1 {
 	margin: 0.5rem 0;
 	opacity: 0.7;
+}
+
+dialog {
+	padding: 2rem;
+	border-radius: 1rem;
+	background-color: var(--dialog-color);
+	border: 2px solid var(--dialog-border-color);
+
+	& h2 {
+		margin: 0;
+		margin-bottom: 1rem;
+	}
+
+	& fieldset {
+		margin: 0.5rem 0;
+	}
+
+	& button {
+		margin-top: 0.5rem;
+		padding: 0.25rem 1rem;
+		border: none;
+		border-radius: 0.15rem;
+		background-color: #0b518e;
+		color: white;
+	}
+
+	& button:hover {
+		background-color: #1a66a8;
+	}
+}
+
+dialog::backdrop {
+	background-color: #0117278d;
+	backdrop-filter: blur(5px);
 }
 
 main {
@@ -76,40 +113,6 @@ footer {
 	& a:hover {
 		opacity: 0.85;
 	}
-}
-
-dialog {
-	padding: 2rem;
-	border-radius: 1rem;
-	border: 2px solid light-dark(black,rgba(255, 255, 255, 0.373));
-	background-color: light-dark(rgb(247, 251, 255), rgba(5, 8, 12, 0.711));
-
-	& h2 {
-		margin: 0;
-		margin-bottom: 1rem;
-	}
-
-	& fieldset {
-		margin: 0.5rem 0;
-	}
-
-	& button {
-		margin-top: 0.5rem;
-		padding: 0.25rem 1rem;
-		border: none;
-		border-radius: 0.15rem;
-		background-color: #0b518e;
-		color: white;
-	}
-
-	& button:hover {
-		background-color: #1a66a8;
-	}
-}
-
-dialog::backdrop {
-	background-color: #0117278d;
-	backdrop-filter: blur(5px);
 }
 
 form#config {

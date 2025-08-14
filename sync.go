@@ -3,10 +3,10 @@ package main
 import (
 	"encoding/json"
 	"log"
-	"os"
+	"sync"
 
-	"github.com/creack/pty"
 	"github.com/gorilla/websocket"
+	"golang.org/x/crypto/ssh"
 )
 
 type wsMessage struct {
@@ -14,16 +14,23 @@ type wsMessage struct {
 	Data string `json:"data"`
 }
 
-// ptyToWs reads PTY output and writes it to the WebSocket.
+type winSize struct {
+	Rows int `json:"rows"`
+	Cols int `json:"cols"`
+	X    int `json:"x"`
+	Y    int `json:"y"`
+}
+
+// ptyToWs reads PTY error output and writes it to the WebSocket.
 //
 // NOTE: The WebSocket and PTY are closed when the PTY
 // errors or closes.
-func ptyToWs(ptmx *os.File, conn *websocket.Conn, onClosed func()) {
-	log.Println("Reading pty.")
+func ptyErrToWs(session *ssh.Session, conn *websocket.Conn, wsMu *sync.Mutex, onClosed func()) {
+	log.Println("Reading pty err...")
 
 	defer func() {
 		conn.Close()
-		ptmx.Close()
+		session.Close()
 
 		if onClosed != nil {
 			onClosed()
@@ -32,18 +39,81 @@ func ptyToWs(ptmx *os.File, conn *websocket.Conn, onClosed func()) {
 
 	b := make([]byte, bufferSize)
 
+	errPipe, err := session.StderrPipe()
+	if err != nil {
+		log.Printf("sess err: %v", err)
+		return
+	}
+
 	for {
-		n, err := ptmx.Read(b)
-		if err != nil {
+		n, err := errPipe.Read(b)
+		if err != nil && n > 0 {
+			log.Printf("read err: %v", err)
+			return
+		}
+
+		if n == 0 {
+			continue
+		}
+
+		wsMu.Lock()
+
+		// log.Printf("read err [%d] %q", n, b[:n])
+		if err = conn.WriteMessage(websocket.TextMessage, b[:n]); err != nil {
+			wsMu.Unlock()
+			log.Printf("ws write: %v", err)
+			return
+		}
+
+		wsMu.Unlock()
+	}
+}
+
+// ptyToWs reads PTY output and writes it to the WebSocket.
+//
+// NOTE: The WebSocket and PTY are closed when the PTY
+// errors or closes.
+func ptyToWs(session *ssh.Session, conn *websocket.Conn, wsMu *sync.Mutex, onClosed func()) {
+	log.Println("Reading pty...")
+
+	defer func() {
+		conn.Close()
+		session.Close()
+
+		if onClosed != nil {
+			onClosed()
+		}
+	}()
+
+	b := make([]byte, bufferSize)
+
+	outPipe, err := session.StdoutPipe()
+	if err != nil {
+		log.Printf("sess out: %v", err)
+		return
+	}
+
+	for {
+		n, err := outPipe.Read(b)
+		if err != nil && n > 0 {
 			log.Printf("read: %v", err)
 			return
 		}
 
-		// log.Printf("[%d] %q", n, b[:n])
+		if n == 0 {
+			continue
+		}
+
+		wsMu.Lock()
+
+		// log.Printf("read [%d] %q", n, b[:n])
 		if err = conn.WriteMessage(websocket.TextMessage, b[:n]); err != nil {
+			wsMu.Unlock()
 			log.Printf("ws write: %v", err)
 			return
 		}
+
+		wsMu.Unlock()
 	}
 }
 
@@ -51,17 +121,23 @@ func ptyToWs(ptmx *os.File, conn *websocket.Conn, onClosed func()) {
 //
 // NOTE: The WebSocket and PTY are closed when the Websocket
 // connection errors or closes.
-func wsToPty(conn *websocket.Conn, ptmx *os.File, onClosed func()) {
-	log.Println("Reading websocket.")
+func wsToPty(conn *websocket.Conn, session *ssh.Session, onClosed func()) {
+	log.Println("Reading websocket...")
 
 	defer func() {
 		conn.Close()
-		ptmx.Close()
+		session.Close()
 
 		if onClosed != nil {
 			onClosed()
 		}
 	}()
+
+	inPipe, err := session.StdinPipe()
+	if err != nil {
+		log.Printf("sess in: %v", err)
+		return
+	}
 
 	for {
 		var msg wsMessage
@@ -74,17 +150,19 @@ func wsToPty(conn *websocket.Conn, ptmx *os.File, onClosed func()) {
 		switch msg.Type {
 		case "input":
 			// log.Printf("ws text: %v, %q", msg.Type, msg.Data)
-			ptmx.Write([]byte(msg.Data))
+			if n, err := inPipe.Write([]byte(msg.Data)); err != nil {
+				log.Printf("ws write: [%v] %v", n, err)
+			}
 		case "size":
 			log.Printf("size %v\n", msg.Data)
 
-			var size pty.Winsize
+			var size winSize
 			if err := json.Unmarshal([]byte(msg.Data), &size); err != nil {
 				log.Printf("size: %v\n", err)
 				break
 			}
 
-			if err := pty.Setsize(ptmx, &size); err != nil {
+			if err := session.WindowChange(size.Rows, size.Cols); err != nil {
 				log.Printf("set size: %v\n", err)
 			}
 		default:

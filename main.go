@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -10,7 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
+	"sync"
 
 	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
@@ -186,15 +185,17 @@ func getTsServerHandler(listener net.Listener, hostname string, server *tsnet.Se
 			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		}
 
+		// Connect to the address through the tailnet
 		tsConn, err := server.Dial(r.Context(), "tcp", addr)
 		if err != nil {
 			cLog.LessFatalf("ts dial: %v", err)
 			return
 		}
 
+		// Create an SSH connection using the tailnet connection
 		sshConn, newChan, reqs, err := ssh.NewClientConn(tsConn, addr, config)
 		if err != nil {
-			cLog.LessFatalf("n client: %v", err)
+			cLog.LessFatalf("sshConn: %v", err)
 			return
 		}
 
@@ -208,22 +209,42 @@ func getTsServerHandler(listener net.Listener, hostname string, server *tsnet.Se
 		}
 		defer session.Close()
 
-		var out bytes.Buffer
-		session.Stdout = &out
+		modes := ssh.TerminalModes{
+			ssh.ECHO:          1,     // enable echoing
+			ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
+			ssh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
+		}
 
-		if err = session.Run("/usr/bin/whoami"); err != nil {
-			cLog.LessFatalf("run: %v", err)
+		// Request a PTY on the SSH session with an arbitrary height and width.
+		// The frontend will send updated height and width once it's connected.
+		if err = session.RequestPty("xterm-256color", 40, 80, modes); err != nil {
+			cLog.LessFatalf("req pty: %v", err)
 			return
 		}
 
-		if err = conn.WriteMessage(websocket.TextMessage, out.Bytes()); err != nil {
-			cLog.LessFatalf("ws write: %v", err)
+		onClosed := func() {
+			listener.Close()
+		}
+
+		// Sync the writes to the WebSocket with a Mutex
+		// since both PTY 'read' and 'error' write to it.
+		var wsMu sync.Mutex
+
+		go ptyErrToWs(session, conn, &wsMu, onClosed)
+		go ptyToWs(session, conn, &wsMu, onClosed)
+		go wsToPty(conn, session, onClosed)
+
+		if err = session.Shell(); err != nil {
+			cLog.LessFatalf("shell: %v", err)
 			return
 		}
 
-		log.Printf("ssh out: %q\n", out.String())
-
-		time.Sleep(1 * time.Second)
+		// Wait for the remote command to exit.
+		// This ensures the i/o pipes stay alive while we're using them.
+		if err = session.Wait(); err != nil {
+			cLog.LessFatalf("sess wait: %v", err)
+			return
+		}
 
 		conn.Close()
 		listener.Close()

@@ -246,7 +246,18 @@ func getTsServerHandler(listener net.Listener, hostname string, server *tsnet.Se
 			return
 		}
 
-		conn.Close()
+		wsMu.Lock()
+
+		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+
+		if err = conn.WriteMessage(websocket.CloseMessage, closeMsg); err != nil {
+			wsMu.Unlock()
+			cLog.LessFatalf("ws close: %v", err)
+			return
+		}
+
+		wsMu.Unlock()
+
 		listener.Close()
 	}
 

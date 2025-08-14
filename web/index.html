@@ -1,25 +1,78 @@
 <!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<link rel="icon" type="image/svg+xml" href="/ts-term.svg" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+	<meta charset="UTF-8" />
+	<link rel="icon" type="image/svg+xml" href="/ts-term.svg" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-		<title>ts-term</title>
+	<title>ts-term</title>
 
-		<link rel="stylesheet" href="/src/style.css">
+	<link rel="stylesheet" href="/src/style.css">
 
-		<script type="module" src="/src/main.js"></script>
-	</head>
-	<body>
-		<main>
-			<h1>ts-term</h1>
+	<script type="module" src="/src/main.js"></script>
+</head>
 
-			<div id="xterm-container"></div>
+<body>
+	<main>
+		<h1>ts-term</h1>
 
-			<footer>
-				<a id="gh" href="https://github.com/Sammy-T/ts-term" target="_blank">GitHub</a>
-			</footer>
-		</main>
-	</body>
+		<div id="xterm-container"></div>
+
+		<footer>
+			<a id="gh" href="https://github.com/Sammy-T/ts-term" target="_blank">GitHub</a>
+		</footer>
+
+		<dialog>
+			<h2>SSH Connection</h2>
+
+			<form>
+				<select name="machine">
+					<option value="">-- machines --</option>
+					<option>machine-1 [0.0.0.0]</option>
+					<option>machine-2 [0.0.0.0]</option>
+				</select>
+
+				<select name="address-type">
+					<option>Domain</option>
+					<option>Full Domain</option>
+					<option>IP</option>
+				</select>
+			</form>
+
+			<form>
+				<fieldset>
+					<legend>Address</legend>
+
+					<input type="text" name="address" placeholder="machine ip / name" autocomplete="off" 
+						required />
+					<label>
+						:
+						<input type="number" name="port" value="22" required />
+					</label>
+				</fieldset>
+
+				<fieldset>
+					<legend>Credentials</legend>
+
+					<label>
+						Username
+						<input type="text" name="username" placeholder="username" autocomplete="username" 
+							required />
+					</label>
+
+					<label>
+						Password
+						<input type="password" name="password" placeholder="password" 
+							autocomplete="current-password" required />
+					</label>
+				</fieldset>
+
+				<button type="submit">Connect</button>
+			</form>
+		</dialog>
+
+		<!-- TODO: Loading modal? -->
+		<!-- TODO: Error/retry modal -->
+	</main>
+</body>
 </html>

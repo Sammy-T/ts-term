@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/gorilla/websocket"
 	ws "github.com/sammy-t/ts-term/internal/websocket"
@@ -20,6 +21,8 @@ type winSize struct {
 	X    int `json:"x"`
 	Y    int `json:"y"`
 }
+
+const ioDelay time.Duration = 10 * time.Millisecond
 
 // ptyToWs reads PTY error output and writes it to the WebSocket.
 //
@@ -46,6 +49,8 @@ func ptyErrToWs(session *ssh.Session, conn *ws.SyncedWebsocket, onClosed func())
 	}
 
 	for {
+		time.Sleep(ioDelay)
+
 		n, err := errPipe.Read(b)
 		if err != nil && n > 0 {
 			log.Printf("read err: %v", err)
@@ -89,6 +94,8 @@ func ptyToWs(session *ssh.Session, conn *ws.SyncedWebsocket, onClosed func()) {
 	}
 
 	for {
+		time.Sleep(ioDelay)
+
 		n, err := outPipe.Read(b)
 		if err != nil && n > 0 {
 			log.Printf("read: %v", err)

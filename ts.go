@@ -102,7 +102,7 @@ func awaitTsWsConnection(conn *websocket.Conn) error {
 	case "ts-websocket-opened":
 		return nil
 	case "ts-websocket-error":
-		return errors.New("websocket errored.")
+		return errors.New("websocket errored")
 	default:
 		return fmt.Errorf("invalid msg received. %q", string(msg))
 	}

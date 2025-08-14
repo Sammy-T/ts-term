@@ -77,3 +77,60 @@ footer {
 		opacity: 0.85;
 	}
 }
+
+dialog {
+	padding: 2rem 1.5rem;
+	border-radius: 1rem;
+	border: 2px solid light-dark(black,rgba(255, 255, 255, 0.373));
+	background-color: light-dark(rgb(247, 251, 255), rgba(5, 8, 12, 0.711));
+
+	& h2 {
+		margin: 0;
+		margin-bottom: 1rem;
+	}
+
+	& button {
+		margin-top: 0.85rem;
+		padding: 0.25rem 1rem;
+		border: none;
+		border-radius: 0.15rem;
+		background-color: #0b518e;
+		color: white;
+	}
+
+	& button:hover {
+		background-color: #1a66a8;
+	}
+}
+
+dialog::backdrop {
+	background-color: #0117278d;
+	backdrop-filter: blur(5px);
+}
+
+form#config {
+	& fieldset:first-of-type {
+		display: flex;
+		gap: 0.25rem;
+
+		& > input:first-of-type {
+			flex-grow: 1;
+		}
+
+		& > input:last-of-type {
+			max-width: 4rem;
+		}
+	}
+
+	& fieldset:last-of-type {
+		display: grid;
+		grid-template-columns: min-content 1fr;
+		align-items: stretch;
+		column-gap: 0.65rem;
+		row-gap: 0.95rem;
+
+		& label {
+			display: contents;
+		}
+	}
+}

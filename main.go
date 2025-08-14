@@ -131,15 +131,15 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Running %v server\n", hostname)
 
-	err = http.Serve(listener, getTsServerHandler(listener, hostname, server, client))
+	err = http.Serve(listener, getTsServerHandler(listener, server, client))
 	log.Printf("%v server closed: %v", hostname, err)
 }
 
-func getTsServerHandler(listener net.Listener, hostname string, server *tsnet.Server, client *local.Client) http.Handler {
+func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *local.Client) http.Handler {
 	tsUpgrader := createUpgraderTs(client)
 
 	h := func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Received request %v %q\n", hostname, r.URL.Path)
+		log.Printf("Received request %v %q\n", server.Hostname, r.URL.Path)
 
 		wsConn, err := tsUpgrader.Upgrade(w, r, nil)
 		if err != nil {

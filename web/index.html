@@ -22,10 +22,10 @@
 			<a id="gh" href="https://github.com/Sammy-T/ts-term" target="_blank">GitHub</a>
 		</footer>
 
-		<dialog>
+		<dialog id="diag-conn">
 			<h2>SSH Connection</h2>
 
-			<form>
+			<form id="machine-settings">
 				<select name="machine">
 					<option value="">-- machines --</option>
 					<option>machine-1 [0.0.0.0]</option>
@@ -39,7 +39,7 @@
 				</select>
 			</form>
 
-			<form>
+			<form id="config" method="dialog">
 				<fieldset>
 					<legend>Address</legend>
 
@@ -71,14 +71,14 @@
 			</form>
 		</dialog>
 
-		<dialog>
+		<dialog id="diag-prog">
 			<progress></progress>
 		</dialog>
 
-		 <dialog>
-			<p>Error message.</p>
+		 <dialog id="diag-err">
+			<p>Connection failed.</p>
 
-			<form>
+			<form method="dialog">
 				<button>Retry</button>
 			</form>
 		 </dialog>

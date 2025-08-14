@@ -6,6 +6,18 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 const term = new Terminal();
 const fitAddon = new FitAddon();
 
+const termContainer = document.querySelector('#xterm-container');
+const ghAnchor = document.querySelector('#gh');
+
+/** @type {HTMLDialogElement} */
+const dialogConn = document.querySelector('#diag-conn');
+
+/** @type {HTMLDialogElement} */
+const dialogProg = document.querySelector('#diag-prog');
+
+/** @type {HTMLDialogElement} */
+const dialogErr = document.querySelector('#diag-err');
+
 /** @type {WebSocket} */
 let initWs;
 
@@ -120,11 +132,38 @@ function onSize() {
 	tsWs.send(JSON.stringify(msg))
 }
 
-// Add the GH logo into the footer link
-const ghAnchor = document.querySelector('#gh');
-ghAnchor.innerHTML = `${ghLogo} ${ghAnchor.innerHTML}`;
+function initDialogs() {
+	dialogConn.showModal();
 
-const termContainer = document.querySelector('#xterm-container');
+	dialogConn.querySelector('#config').addEventListener('submit', async (ev) => {
+		dialogProg.showModal();
+
+		const formData = new FormData(ev.target);
+
+		/** @type {RequestInit} */
+		const data = {
+			method: 'post',
+			body: formData,
+		};
+
+		try {
+			const resp = await fetch('http://localhost:3000', data);
+			if(!resp.ok) throw new Error('fetch error');
+		} catch(err) {
+			console.log('Unable to submit data.', err);
+			dialogErr.showModal();
+		} finally {
+			dialogProg.close();
+		}
+	});
+
+	dialogErr.querySelector('form').addEventListener('submit', (ev) => {
+		dialogConn.showModal();
+	});
+}
+
+// Add the GH logo into the footer link
+ghAnchor.innerHTML = `${ghLogo} ${ghAnchor.innerHTML}`;
 
 term.loadAddon(fitAddon);
 term.loadAddon(new WebLinksAddon());
@@ -149,4 +188,5 @@ rsObserver.observe(termContainer);
 
 term.write('Welcome to \x1B[1;3;32mts-term\x1B[0m \r\n');
 
+initDialogs();
 connectInitWs();

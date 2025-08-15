@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -118,10 +119,29 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	peerInfos, err := getPeerConnInfo(r, client)
+	if err != nil {
+		log.Printf("peer info: %v\n", err)
+		return
+	}
+
+	infoBytes, err := json.Marshal(peerInfos)
+	if err != nil {
+		log.Printf("peer marshal: %v\n", err)
+		return
+	}
+
+	peerMsg := "peer-infos:" + string(infoBytes)
+	if err := conn.WriteMessage(websocket.TextMessage, []byte(peerMsg)); err != nil {
+		log.Printf("ws write peers: %v\n", err)
+		return
+	}
+
 	// Await the ssh config info
 	resp, err := awaitConnectionMsg(conn, 0)
 	if err != nil || resp[0] != "ssh-config" {
 		log.Printf("%v conn await %v: %v\n", hostname, resp, err)
+		return
 	}
 
 	// ssh-config:username:password:address:port

@@ -18,6 +18,18 @@ const dialogProg = document.querySelector('#diag-prog');
 /** @type {HTMLDialogElement} */
 const dialogErr = document.querySelector('#diag-err');
 
+/** @type {HTMLFormElement} */
+const settingsForm = dialogConn.querySelector('#machine-settings');
+
+/** @type {HTMLFormElement} */
+const configForm = dialogConn.querySelector('#config');
+
+/** @type {HTMLSelectElement} */
+const machineSelect = settingsForm.querySelector('select[name="machine"]');
+
+/** @type {HTMLSelectElement} */
+const typeSelect = settingsForm.querySelector('select[name="address-type"]');
+
 /** @type {WebSocket} */
 let initWs;
 
@@ -27,28 +39,35 @@ let tsWs;
 /** @type {String} */
 let tsWsUrl;
 
+/** @type {Array} */
+let peerInfos;
+
+const proto = (location.protocol === 'https:') ? 'wss:' : 'ws:';
+
 function connectInitWs() {
-	initWs = new WebSocket(`ws://${location.host}/ts`);
+	initWs = new WebSocket(`${proto}//${location.host}/ts`);
 
 	const machineMsg = 'Tailscale machine';
+	const peerMsg = 'peer-infos:';
 
 	initWs.onopen = (ev) => {
 		term.write('Init WebSocket open.\r\n');
 	};
 
 	initWs.onmessage = (ev) => {
+		if(ev.data.startsWith(machineMsg)) {
+			const hostname = ev.data.split(' ').at(2);
+			tsWsUrl = `${proto}//${hostname}`;
+		} else if(ev.data.startsWith(peerMsg)) {
+			peerInfos = JSON.parse(ev.data.replace(peerMsg, ''));
+
+			updateMachines();
+			dialogConn.showModal();
+			return
+		}
+
 		console.log(ev);
 		term.write(ev.data);
-
-		if(ev.data.startsWith(machineMsg)) {
-			const proto = (location.protocol === 'https:') ? 'wss:' : 'ws:';
-			const hostname = ev.data.split(' ').at(2);
-
-			tsWsUrl = `${proto}//${hostname}`;
-
-			//// TODO: Update ssh dialog machines
-			dialogConn.showModal();
-		}
 	};
 
 	initWs.onclose = (ev) => {
@@ -142,8 +161,54 @@ function onSize() {
 	tsWs.send(JSON.stringify(msg))
 }
 
+function updateMachines() {
+	let machineOpts = `<option value="">-- machines --</option>\n`;
+
+	peerInfos.forEach((info, i) => {
+		const { shortDomain, ips } = info;
+		machineOpts += `<option value="${i}">${shortDomain} [${ips[0]}]</option>\n`;
+	});
+
+	machineSelect.innerHTML = machineOpts;
+}
+
+/**
+ * @param {InputEvent} event 
+ */
+function onMachineSelect(event) {
+	const formData = new FormData(settingsForm);
+
+	const machineIdx = formData.get('machine');
+	const type = formData.get('address-type');
+
+	if(machineIdx === '') return;
+
+	const info = peerInfos[Number(machineIdx)];
+
+	let address = info.shortDomain;
+
+	switch(type) {
+		case 'domain':
+			address = info.shortDomain;
+			break;
+
+		case 'full':
+			address = info.domain;
+			break;
+
+		case 'ip':
+			address = info.ips[0];
+			break;
+	}
+
+	configForm.querySelector('input[name="address"]').value = address;
+}
+
 function initDialogs() {
-	dialogConn.querySelector('#config').addEventListener('submit', async (ev) => {
+	machineSelect.addEventListener('input', onMachineSelect);
+	typeSelect.addEventListener('input', onMachineSelect);
+
+	configForm.addEventListener('submit', async (ev) => {
 		dialogProg.showModal();
 
 		const formData = new FormData(ev.target);
@@ -153,8 +218,10 @@ function initDialogs() {
 		const username = formData.get('username');
 		const password = formData.get('password');
 
+		// Send the ssh info
 		initWs.send(`ssh-config:${username}:${password}:${address}:${port}`);
 
+		// Attempt connection to the ts websocket after a delay
 		setTimeout(() => connectTsWs(tsWsUrl), 1000);
 	});
 

@@ -92,6 +92,7 @@ main {
 #xterm-container {
 	flex-grow: 1;
 	max-height: 50dvh;
+	margin-bottom: 0.25rem;
 	border-radius: 0.35rem;
 	overflow: hidden;
 	opacity: 0.83;

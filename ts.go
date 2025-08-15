@@ -17,6 +17,12 @@ import (
 	"tailscale.com/tsnet"
 )
 
+type PeerConnInfo struct {
+	Domain      string   `json:"domain"`
+	ShortDomain string   `json:"shortDomain"`
+	Ips         []string `json:"ips"`
+}
+
 func createHostName() string {
 	uuid, err := uuid.NewV7()
 	if err != nil {
@@ -91,7 +97,7 @@ func createUpgraderTs(client *local.Client) websocket.Upgrader {
 			log.Fatalf("ts status %q: %v", status.BackendState, err)
 		}
 
-		validOriginHosts := getTailnetAddresses(status)
+		validOriginHosts := getValidHosts(status)
 
 		host := r.Host
 		originHdr := r.Header.Get("Origin")
@@ -119,9 +125,9 @@ func createUpgraderTs(client *local.Client) websocket.Upgrader {
 	return tsUpgrader
 }
 
-// getTailnetAddresses returns all the Tailscale domains and IP addresses
+// getValidHosts returns all the Tailscale domains and IP addresses
 // on the Tailnet.
-func getTailnetAddresses(status *ipnstate.Status) []string {
+func getValidHosts(status *ipnstate.Status) []string {
 	domain := status.Self.DNSName
 	shortDomain := strings.Split(domain, ".")[0]
 	tsIps := status.TailscaleIPs
@@ -145,4 +151,35 @@ func getTailnetAddresses(status *ipnstate.Status) []string {
 	}
 
 	return addresses
+}
+
+func getPeerConnInfo(r *http.Request, client *local.Client) ([]PeerConnInfo, error) {
+	status, err := client.Status(r.Context())
+	if err != nil {
+		return nil, fmt.Errorf("ts status %q: %v", status.BackendState, err)
+	}
+
+	infos := []PeerConnInfo{}
+
+	for _, peerStatus := range status.Peer {
+		domain := peerStatus.DNSName
+		shortDomain := strings.Split(domain, ".")[0]
+		tsIps := peerStatus.TailscaleIPs
+
+		ips := []string{}
+
+		for _, ip := range tsIps {
+			ips = append(ips, ip.String())
+		}
+
+		info := PeerConnInfo{
+			Domain:      domain,
+			ShortDomain: shortDomain,
+			Ips:         ips,
+		}
+
+		infos = append(infos, info)
+	}
+
+	return infos, nil
 }

@@ -38,6 +38,12 @@ h1 {
 	opacity: 0.7;
 }
 
+form {
+	& input {
+		min-height: 1.5rem;
+	}
+}
+
 dialog {
 	padding: 2rem;
 	border-radius: 1rem;
@@ -118,6 +124,7 @@ footer {
 form#config {
 	& fieldset:first-of-type {
 		display: flex;
+		align-items: baseline;
 		gap: 0.25rem;
 
 		& > input:first-of-type {
@@ -132,7 +139,7 @@ form#config {
 	& fieldset:last-of-type {
 		display: grid;
 		grid-template-columns: min-content 1fr;
-		align-items: stretch;
+		align-items: baseline;
 		column-gap: 0.65rem;
 		row-gap: 0.95rem;
 

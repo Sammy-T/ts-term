@@ -51,7 +51,7 @@ func main() {
 
 func getWebHandler() http.Handler {
 	if dev {
-		startDevServer()
+		startDevServer("pnpm")
 		return createDevHandler()
 	}
 

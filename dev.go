@@ -20,17 +20,17 @@ func startDevServer() {
 
 	cmdDir := filepath.Join(cwDir, "web")
 
-	cmdInst := exec.Command("npm", "i")
+	cmdInst := exec.Command("pnpm", "i")
 	cmdInst.Dir = cmdDir
 	cmdInst.Stdout = os.Stdout
 	cmdInst.Stderr = os.Stderr
 
 	// Run install and await
 	if err = cmdInst.Run(); err != nil {
-		log.Fatalf("Npm install: %v", err)
+		log.Fatalf("pnpm install: %v", err)
 	}
 
-	cmd := exec.Command("npm", "run", "dev")
+	cmd := exec.Command("pnpm", "run", "dev")
 	cmd.Dir = cmdDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

@@ -1,26 +1,31 @@
 # syntax=docker/dockerfile:1
 
+ARG NODE_VERSION=22.13.1
+ARG PNPM_VERSION=10.14.0
 ARG GO_VERSION=1.24.6
 
 ## Node
 ################################################################################
 # Use node image for base image
-ARG NODE_VERSION=22.13.1
 FROM node:${NODE_VERSION}-alpine AS base-node
 WORKDIR /app/web
+
+# Install pnpm.
+RUN --mount=type=cache,target=/root/.npm \
+    npm install -g pnpm@${PNPM_VERSION}
 
 ################################################################################
 # Create a stage for installing production dependecies.
 FROM base-node AS deps-node
 
 # Download dependencies as a separate step to take advantage of Docker's caching.
-# Leverage a cache mount to /root/.npm to speed up subsequent builds.
-# Leverage bind mounts to package.json and package-lock.json to avoid having to copy them
+# Leverage a cache mount to /root/.local/share/pnpm/store to speed up subsequent builds.
+# Leverage bind mounts to package.json and pnpm-lock.yaml to avoid having to copy them
 # into this layer.
 RUN --mount=type=bind,source=web/package.json,target=package.json \
-    --mount=type=bind,source=web/package-lock.json,target=package-lock.json \
-    --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev
+    --mount=type=bind,source=web/pnpm-lock.yaml,target=pnpm-lock.yaml \
+    --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --prod --frozen-lockfile
 
 ################################################################################
 # Create a stage for building the application.
@@ -29,14 +34,14 @@ FROM deps-node AS build-node
 # Download additional development dependencies before building, as some projects require
 # "devDependencies" to be installed to build. If you don't need this, remove this step.
 RUN --mount=type=bind,source=web/package.json,target=package.json \
-    --mount=type=bind,source=web/package-lock.json,target=package-lock.json \
-    --mount=type=cache,target=/root/.npm \
-    npm ci
+    --mount=type=bind,source=web/pnpm-lock.yaml,target=pnpm-lock.yaml \
+    --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # Copy the rest of the source files into the image.
 COPY web .
 # Run the build script.
-RUN npm run build
+RUN pnpm run build
 
 
 ## Go

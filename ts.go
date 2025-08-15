@@ -78,36 +78,6 @@ func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, con
 	return errors.New(msg)
 }
 
-// awaitTsWsConnection uses the provided Websocket to await notification
-// of a successful TS WebSocket connection. An error is returned on an
-// error notification or on a timeout.
-func awaitTsWsConnection(conn *websocket.Conn) error {
-	go func() {
-		time.Sleep(30 * time.Second)
-
-		msg := websocket.FormatCloseMessage(websocket.CloseGoingAway, "websocket timed out.")
-		conn.WriteMessage(websocket.CloseMessage, msg)
-	}()
-
-	msgType, msg, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("read err: %v", err)
-	}
-
-	if msgType != websocket.TextMessage {
-		return fmt.Errorf("invalid msg type received. [%v]", msgType)
-	}
-
-	switch string(msg) {
-	case "ts-websocket-opened":
-		return nil
-	case "ts-websocket-error":
-		return errors.New("websocket errored")
-	default:
-		return fmt.Errorf("invalid msg received. %q", string(msg))
-	}
-}
-
 // createUpgraderTs creates a WebSocket Upgrader with a CheckOrigin function
 // that verifies requests against the provided Tailscale server.
 func createUpgraderTs(client *local.Client) websocket.Upgrader {

@@ -24,6 +24,9 @@ let initWs;
 /** @type {WebSocket} */
 let tsWs;
 
+/** @type {String} */
+let tsWsUrl;
+
 function connectInitWs() {
 	initWs = new WebSocket(`ws://${location.host}/ts`);
 
@@ -41,8 +44,10 @@ function connectInitWs() {
 			const proto = (location.protocol === 'https:') ? 'wss:' : 'ws:';
 			const hostname = ev.data.split(' ').at(2);
 
-			// Wait before attempting connection.
-			setTimeout(() => connectTsWs(`${proto}//${hostname}`), 1000);
+			tsWsUrl = `${proto}//${hostname}`;
+
+			//// TODO: Update ssh dialog machines
+			dialogConn.showModal();
 		}
 	};
 
@@ -81,6 +86,8 @@ function connectTsWs(url) {
 	});
 
 	tsWs.onopen = (ev) => {
+		dialogProg.close();
+
 		initWs.send('ts-websocket-opened');
 		term.write('Tailscale WebSocket open.\r\n');
 
@@ -105,6 +112,9 @@ function connectTsWs(url) {
 
 	tsWs.onerror = (ev) => {
 		console.log(ev);
+
+		dialogProg.close();
+		// if(initWs.readyState === WebSocket.OPEN) dialogErr.showModal(); //// TODO: err/retry dialog?
 
 		initWs.send('ts-websocket-error');
 
@@ -133,28 +143,19 @@ function onSize() {
 }
 
 function initDialogs() {
-	dialogConn.showModal();
-
 	dialogConn.querySelector('#config').addEventListener('submit', async (ev) => {
 		dialogProg.showModal();
 
 		const formData = new FormData(ev.target);
 
-		/** @type {RequestInit} */
-		const data = {
-			method: 'post',
-			body: formData,
-		};
+		const address = formData.get('address');
+		const port = formData.get('port');
+		const username = formData.get('username');
+		const password = formData.get('password');
 
-		try {
-			const resp = await fetch('http://localhost:3000', data);
-			if(!resp.ok) throw new Error('fetch error');
-		} catch(err) {
-			console.log('Unable to submit data.', err);
-			dialogErr.showModal();
-		} finally {
-			dialogProg.close();
-		}
+		initWs.send(`ssh-config:${username}:${password}:${address}:${port}`);
+
+		setTimeout(() => connectTsWs(tsWsUrl), 1000);
 	});
 
 	dialogErr.querySelector('form').addEventListener('submit', (ev) => {

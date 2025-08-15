@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
@@ -111,17 +113,31 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	if err := pollStatus(r, server, client, conn); err != nil {
+		log.Printf("poll status: %v\n", err)
+		return
+	}
+
+	// Await the ssh config info
+	resp, err := awaitConnectionMsg(conn, 0)
+	if err != nil || resp[0] != "ssh-config" {
+		log.Printf("%v conn await %v: %v\n", hostname, resp, err)
+	}
+
+	// ssh-config:username:password:address:port
+	sshCfg := map[string]string{
+		"username": resp[1],
+		"password": resp[2],
+		"address":  resp[3] + ":" + resp[4],
+	}
+
 	go func() {
 		defer conn.Close()
 
-		if err := pollStatus(r, server, client, conn); err != nil {
-			log.Printf("poll status: %v\n", err)
-			listener.Close()
-			return
-		}
-
-		if err := awaitTsWsConnection(conn); err != nil {
-			log.Printf("%v conn await: %v\n", hostname, err)
+		// Await the ts-websocket-opened message
+		resp, err := awaitConnectionMsg(conn, 30*time.Second)
+		if err != nil || resp[0] != "ts-websocket-opened" {
+			log.Printf("%v conn await %v: %v\n", hostname, resp, err)
 			listener.Close()
 			return
 		}
@@ -131,11 +147,11 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Running %v server\n", hostname)
 
-	err = http.Serve(listener, getTsServerHandler(listener, server, client))
+	err = http.Serve(listener, getTsServerHandler(listener, server, client, sshCfg))
 	log.Printf("%v server closed: %v", hostname, err)
 }
 
-func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *local.Client) http.Handler {
+func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *local.Client, sshCfg map[string]string) http.Handler {
 	tsUpgrader := createUpgraderTs(client)
 
 	h := func(w http.ResponseWriter, r *http.Request) {
@@ -184,28 +200,23 @@ func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *loc
 			return
 		}
 
-		//// TODO: TEMP
-		username := os.Getenv("SSH_USER")
-		password := os.Getenv("SSH_PWD")
-		addr := os.Getenv("SSH_ADDR")
-
 		config := &ssh.ClientConfig{
-			User: username,
+			User: sshCfg["username"],
 			Auth: []ssh.AuthMethod{
-				ssh.Password(password),
+				ssh.Password(sshCfg["password"]),
 			},
 			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		}
 
 		// Connect to the address through the tailnet
-		tsConn, err := server.Dial(r.Context(), "tcp", addr)
+		tsConn, err := server.Dial(r.Context(), "tcp", sshCfg["address"])
 		if err != nil {
 			cLog.LessFatalf("ts dial: %v", err)
 			return
 		}
 
 		// Create an SSH connection using the tailnet connection
-		sshConn, newChan, reqs, err := ssh.NewClientConn(tsConn, addr, config)
+		sshConn, newChan, reqs, err := ssh.NewClientConn(tsConn, sshCfg["address"], config)
 		if err != nil {
 			cLog.LessFatalf("sshConn: %v", err)
 			return
@@ -265,4 +276,50 @@ func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *loc
 	}
 
 	return http.HandlerFunc(h)
+}
+
+// awaitConnectionMsg awaits the next notification on the provided Websocket connection
+// and returns the parsed response or an error.
+//
+// The connection is closed if a response isn't received before the timeout.
+func awaitConnectionMsg(conn *websocket.Conn, timeout time.Duration) ([]string, error) {
+	var parsed []string
+	var err error
+
+	go func() {
+		if timeout.Milliseconds() == 0 {
+			return
+		}
+
+		time.Sleep(timeout)
+
+		if len(parsed) > 0 || err != nil {
+			return
+		}
+
+		log.Println("websocket timed out.")
+
+		msg := websocket.FormatCloseMessage(websocket.CloseGoingAway, "websocket timed out.")
+		conn.WriteMessage(websocket.CloseMessage, msg)
+	}()
+
+	msgType, msg, err := conn.ReadMessage()
+	if err != nil {
+		return parsed, fmt.Errorf("read err: %v", err)
+	}
+
+	if msgType != websocket.TextMessage {
+		return parsed, fmt.Errorf("invalid msg type received. [%v]", msgType)
+	}
+
+	parsed = strings.Split(string(msg), ":")
+
+	switch parsed[0] {
+	case "ssh-config", "ts-websocket-opened":
+		return parsed, nil
+	case "ts-websocket-error":
+		return parsed, errors.New("websocket errored")
+	default:
+		return parsed, fmt.Errorf("invalid msg received. %q", string(msg))
+	}
 }

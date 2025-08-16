@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
 	"github.com/gorilla/websocket"
 	ws "github.com/sammy-t/ts-term/internal/websocket"
@@ -26,6 +27,8 @@ func (c ConnLog) LessFatalf(format string, v ...any) {
 	if err := c.Conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
 		log.Printf("connlog conn write: %v", err)
 	}
+
+	time.Sleep(100 * time.Millisecond)
 
 	if err := c.Conn.Close(); err != nil {
 		log.Printf("connlog conn close: %v", err)

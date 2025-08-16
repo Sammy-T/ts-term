@@ -17,9 +17,8 @@ type ConnLog struct {
 	Listener net.Listener
 }
 
-// LessFatalf writes the error to the log and WebSocket.
-// Then closes the WebSocket and net listener.
-func (c ConnLog) LessFatalf(format string, v ...any) {
+// Printf writes to the log and WebSocket.
+func (c ConnLog) Printf(format string, v ...any) {
 	log.Printf(format, v...)
 
 	msg := fmt.Sprintf(format, v...)
@@ -27,6 +26,12 @@ func (c ConnLog) LessFatalf(format string, v ...any) {
 	if err := c.Conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
 		log.Printf("connlog conn write: %v", err)
 	}
+}
+
+// LessFatalf writes the error to the log and WebSocket.
+// Then closes the WebSocket and net listener.
+func (c ConnLog) LessFatalf(format string, v ...any) {
+	c.Printf(format, v...)
 
 	time.Sleep(100 * time.Millisecond)
 

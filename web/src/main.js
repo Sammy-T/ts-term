@@ -59,6 +59,7 @@ function connectInitWs() {
 
 	initWs.onopen = (ev) => {
 		term.write('Init WebSocket open.\r\n');
+		isOnNewline = true;
 	};
 
 	initWs.onmessage = (ev) => {
@@ -76,16 +77,26 @@ function connectInitWs() {
 
 		console.log(ev);
 		term.write(ev.data);
+
+		isOnNewline = ev.data.endsWith('\r\n');
 	};
 
 	initWs.onclose = (ev) => {
 		console.log(ev);
-		term.write('Init WebSocket closed.\r\n');
+
+		const msg = 'Init WebSocket closed.\r\n';
+		term.write((isOnNewline) ? msg : `\r\n${msg}`);
+
+		isOnNewline = true;
 	};
 
 	initWs.onerror = (ev) => {
 		console.log(ev);
-		term.write('Init WebSocket error.\r\n');
+		
+		const msg = 'Init WebSocket error.\r\n';
+		term.write((isOnNewline) ? msg : `\r\n${msg}`);
+
+		isOnNewline = true;
 	}
 
 	window.addEventListener('pagehide', () => {
@@ -110,6 +121,8 @@ function connectTsWs(url) {
 
 		initWs.send('ts-websocket-opened');
 		term.write('Tailscale WebSocket open.\r\n');
+
+		isOnNewline = true;
 	};
 
 	tsWs.onmessage = (ev) => {
@@ -147,6 +160,8 @@ function connectTsWs(url) {
 
 		const msg = 'Tailscale WebSocket error.\r\n';
 		term.write((isOnNewline) ? msg : `\r\n${msg}`);
+
+		isOnNewline = true;
 	}
 
 	window.addEventListener('pagehide', () => {

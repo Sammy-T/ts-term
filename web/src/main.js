@@ -66,7 +66,8 @@ function connectInitWs() {
 			const hostname = ev.data.split(' ').at(2);
 			tsWsUrl = `${proto}//${hostname}`;
 		} else if(ev.data.startsWith(peerMsg)) {
-			peerInfos = JSON.parse(ev.data.replace(peerMsg, ''));
+			const infos = JSON.parse(ev.data.replace(peerMsg, ''));
+			peerInfos = infos.sort((a, b) => a.shortDomain.localeCompare(b.shortDomain));
 
 			updateMachines();
 			dialogConn.showModal();

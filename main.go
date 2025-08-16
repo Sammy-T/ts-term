@@ -94,6 +94,7 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 		tsAddr = ":443"
 	}
 
+	log.Printf("Creating tsnet server %q...\n", hostname)
 	listener, err := server.Listen("tcp", tsAddr)
 	if err != nil {
 		log.Printf("ts listener: %v\n", err)
@@ -101,6 +102,7 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer listener.Close()
 
+	log.Println("Getting local client...")
 	client, err := server.LocalClient()
 	if err != nil {
 		log.Printf("ts client: %v\n", err)
@@ -115,6 +117,7 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	log.Println("Polling status...")
 	if err := pollStatus(r, server, client, conn); err != nil {
 		log.Printf("poll status: %v\n", err)
 		return
@@ -132,8 +135,12 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	peerMsg := "peer-infos:" + string(infoBytes)
-	if err := conn.WriteMessage(websocket.TextMessage, []byte(peerMsg)); err != nil {
+	wsMsg := ws.Message{
+		Type: ws.MessagePeers,
+		Data: string(infoBytes),
+	}
+
+	if err := conn.WriteJSON(wsMsg); err != nil {
 		log.Printf("ws write peers: %v\n", err)
 		return
 	}
@@ -204,14 +211,19 @@ func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *loc
 			return
 		}
 
-		msg := fmt.Sprintf("Connected to %v as %v from %v (%v).\r\n",
+		msg := fmt.Sprintf("Connected to %v as %v from %v (%v).",
 			status.Self.HostName,
 			who.UserProfile.DisplayName,
 			who.Node.ComputedName,
 			r.RemoteAddr,
 		)
 
-		if err = conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+		wsMsg := ws.Message{
+			Type: ws.MessageInfo,
+			Data: msg,
+		}
+
+		if err = conn.WriteJSON(wsMsg); err != nil {
 			cLog.LessFatalf("ws write: %v", err)
 			return
 		}
@@ -258,7 +270,12 @@ func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *loc
 			return
 		}
 
-		if err = conn.WriteMessage(websocket.TextMessage, []byte("ssh-success")); err != nil {
+		wsMsg = ws.Message{
+			Type: ws.MessageStatus,
+			Data: "ssh-success",
+		}
+
+		if err = conn.WriteJSON(wsMsg); err != nil {
 			cLog.LessFatalf("ws write: %v", err)
 			return
 		}
@@ -338,29 +355,32 @@ func awaitConnectionMsg(conn *websocket.Conn, timeout time.Duration) ([]string, 
 			return
 		}
 
-		log.Println("websocket timed out.")
+		msg := "websocket timed out."
 
-		msg := websocket.FormatCloseMessage(websocket.CloseGoingAway, "websocket timed out.")
-		conn.WriteMessage(websocket.CloseMessage, msg)
+		log.Println(msg)
+
+		wsMsg := websocket.FormatCloseMessage(websocket.CloseGoingAway, msg)
+		conn.WriteMessage(websocket.CloseMessage, wsMsg)
 	}()
 
-	msgType, msg, err := conn.ReadMessage()
-	if err != nil {
+	var msg ws.Message
+
+	if err := conn.ReadJSON(&msg); err != nil {
 		return parsed, fmt.Errorf("read err: %v", err)
 	}
 
-	if msgType != websocket.TextMessage {
-		return parsed, fmt.Errorf("invalid msg type received. [%v]", msgType)
+	if msg.Type != ws.MessageStatus {
+		return parsed, fmt.Errorf("invalid msg received. [%v] %q", msg.Type, msg.Data)
 	}
 
-	parsed = strings.Split(string(msg), ":")
+	parsed = strings.Split(string(msg.Data), ":")
 
 	switch parsed[0] {
-	case "ssh-config", "ts-websocket-opened":
+	case ws.StatusSshCfg, ws.StatusWsOpened:
 		return parsed, nil
-	case "ts-websocket-error":
+	case ws.StatusWsError:
 		return parsed, errors.New("websocket errored")
 	default:
-		return parsed, fmt.Errorf("invalid msg received. %q", string(msg))
+		return parsed, fmt.Errorf("invalid msg received. [%v] %q", msg.Type, msg.Data)
 	}
 }

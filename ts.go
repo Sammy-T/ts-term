@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	ws "github.com/sammy-t/ts-term/internal/websocket"
 	"tailscale.com/client/local"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tsnet"
@@ -51,9 +52,12 @@ func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, con
 				break
 			}
 
-			msg := fmt.Sprintf("Auth required. Go to: %v\r\n", status.AuthURL)
+			wsMsg := ws.Message{
+				Type: ws.MessageInfo,
+				Data: fmt.Sprintf("Auth required. Go to: %v", status.AuthURL),
+			}
 
-			if err = conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+			if err = conn.WriteJSON(wsMsg); err != nil {
 				return fmt.Errorf("ws write status %q: %v", status.BackendState, err)
 			}
 
@@ -62,12 +66,17 @@ func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, con
 			tsIp4, tsIp6 := server.TailscaleIPs()
 			hostname := status.Self.HostName
 
-			msg := fmt.Sprintf("Tailscale machine %v at %v %v\r\n", hostname, tsIp4, tsIp6)
+			msg := fmt.Sprintf("Tailscale machine %v at %v %v", hostname, tsIp4, tsIp6)
 
-			if err = conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+			wsMsg := ws.Message{
+				Type: ws.MessageInfo,
+				Data: msg,
+			}
+
+			if err = conn.WriteJSON(wsMsg); err != nil {
 				return fmt.Errorf("ws write status %q: %v", status.BackendState, err)
 			}
-			log.Print(msg)
+			log.Println(msg)
 
 			return nil
 		}
@@ -77,7 +86,12 @@ func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, con
 
 	msg := fmt.Sprintf("%v init timed out.", server.Hostname)
 
-	if err := conn.WriteMessage(websocket.TextMessage, []byte(msg+"\r\n")); err != nil {
+	wsMsg := ws.Message{
+		Type: ws.MessageError,
+		Data: msg,
+	}
+
+	if err := conn.WriteJSON(wsMsg); err != nil {
 		return fmt.Errorf("ws write: %v", err)
 	}
 

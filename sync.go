@@ -5,15 +5,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/gorilla/websocket"
 	ws "github.com/sammy-t/ts-term/internal/websocket"
 	"golang.org/x/crypto/ssh"
 )
-
-type wsMessage struct {
-	Type string `json:"type"`
-	Data string `json:"data"`
-}
 
 type winSize struct {
 	Rows int `json:"rows"`
@@ -61,8 +55,13 @@ func ptyErrToWs(session *ssh.Session, conn *ws.SyncedWebsocket, onClosed func())
 			continue
 		}
 
+		msg := ws.Message{
+			Type: ws.MessageOutput,
+			Data: string(b[:n]),
+		}
+
 		// log.Printf("read err [%d] %q", n, b[:n])
-		if err = conn.WriteMessage(websocket.TextMessage, b[:n]); err != nil {
+		if err = conn.WriteJSON(msg); err != nil {
 			log.Printf("ws write: %v", err)
 			return
 		}
@@ -106,8 +105,13 @@ func ptyToWs(session *ssh.Session, conn *ws.SyncedWebsocket, onClosed func()) {
 			continue
 		}
 
+		msg := ws.Message{
+			Type: ws.MessageOutput,
+			Data: string(b[:n]),
+		}
+
 		// log.Printf("read [%d] %q", n, b[:n])
-		if err = conn.WriteMessage(websocket.TextMessage, b[:n]); err != nil {
+		if err = conn.WriteJSON(msg); err != nil {
 			log.Printf("ws write: %v", err)
 			return
 		}
@@ -137,7 +141,7 @@ func wsToPty(conn *ws.SyncedWebsocket, session *ssh.Session, onClosed func()) {
 	}
 
 	for {
-		var msg wsMessage
+		var msg ws.Message
 
 		if err := conn.ReadJSON(&msg); err != nil {
 			log.Printf("Websocket read: %v\n", err)
@@ -145,12 +149,12 @@ func wsToPty(conn *ws.SyncedWebsocket, session *ssh.Session, onClosed func()) {
 		}
 
 		switch msg.Type {
-		case "input":
+		case ws.MessageInput:
 			// log.Printf("ws text: %v, %q", msg.Type, msg.Data)
 			if n, err := inPipe.Write([]byte(msg.Data)); err != nil {
 				log.Printf("ws write: [%v] %v", n, err)
 			}
-		case "size":
+		case ws.MessageSize:
 			log.Printf("size %v\n", msg.Data)
 
 			var size winSize

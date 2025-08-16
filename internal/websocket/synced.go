@@ -28,6 +28,16 @@ func (s SyncedWebsocket) ReadMessage() (messageType int, p []byte, err error) {
 	return s.Conn.ReadMessage()
 }
 
+// WriteJSON writes the JSON encoding of v as a message.
+//
+// See the documentation for encoding/json Marshal for details about the conversion of Go values to JSON.
+func (s SyncedWebsocket) WriteJSON(v any) error {
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
+
+	return s.Conn.WriteJSON(v)
+}
+
 // ReadJSON reads the next JSON-encoded message from the connection
 // and stores it in the value pointed to by v.
 //

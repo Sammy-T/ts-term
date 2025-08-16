@@ -3,6 +3,12 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 
+/**
+ * @typedef {Object} WsMessage
+ * @property {String} type
+ * @property {String} data
+ */
+
 const term = new Terminal();
 const fitAddon = new FitAddon();
 
@@ -55,7 +61,6 @@ function connectInitWs() {
 	initWs = new WebSocket(`${proto}//${location.host}/ts`);
 
 	const machineMsg = 'Tailscale machine';
-	const peerMsg = 'peer-infos:';
 
 	initWs.onopen = (ev) => {
 		term.write('Init WebSocket open.\r\n');
@@ -63,28 +68,38 @@ function connectInitWs() {
 	};
 
 	initWs.onmessage = (ev) => {
-		if(ev.data.startsWith(machineMsg)) {
-			const hostname = ev.data.split(' ').at(2);
-			tsWsUrl = `${proto}//${hostname}`;
-		} else if(ev.data.startsWith(peerMsg)) {
-			const infos = JSON.parse(ev.data.replace(peerMsg, ''));
-			peerInfos = infos.sort((a, b) => a.shortDomain.localeCompare(b.shortDomain));
+		console.log(ev);
 
-			updateMachines();
-			dialogConn.showModal();
-			return
+		/** @type {WsMessage} */
+		const msg = JSON.parse(ev.data);
+
+		switch(msg.type) {
+			case 'info':
+				if(msg.data.startsWith(machineMsg)) {
+					const hostname = ev.data.split(' ').at(2);
+					tsWsUrl = `${proto}//${hostname}`;
+				}
+				break;
+
+			case 'peers':
+				const infos = JSON.parse(msg.data);
+				peerInfos = infos.sort((a, b) => a.shortDomain.localeCompare(b.shortDomain));
+				
+				updateMachines();
+				dialogConn.showModal();
+				return
+			
+			default:
+				return
 		}
 
-		console.log(ev);
-		term.write(ev.data);
-
-		isOnNewline = ev.data.endsWith('\r\n');
+		term.write(`${msg.data}\r\n`);
+		isOnNewline = true;
 	};
 
 	initWs.onclose = (ev) => {
 		console.log(ev);
-
-		const msg = 'Init WebSocket closed.\r\n';
+		const msg = `Init WebSocket closed. ${ev.reason || ''}\r\n`;
 		term.write((isOnNewline) ? msg : `\r\n${msg}`);
 
 		isOnNewline = true;
@@ -92,9 +107,7 @@ function connectInitWs() {
 
 	initWs.onerror = (ev) => {
 		console.log(ev);
-		
-		const msg = 'Init WebSocket error.\r\n';
-		term.write((isOnNewline) ? msg : `\r\n${msg}`);
+		term.write('Init WebSocket error.\r\n');
 
 		isOnNewline = true;
 	}
@@ -108,6 +121,7 @@ function connectTsWs(url) {
 	tsWs = new WebSocket(url);
 
 	term.onData((data) => {
+		/** @type {WsMessage} */
 		const msg = {
 			type: 'input',
 			data
@@ -119,7 +133,13 @@ function connectTsWs(url) {
 	tsWs.onopen = (ev) => {
 		dialogProg.close();
 
-		initWs.send('ts-websocket-opened');
+		/** @type {WsMessage} */
+		const msg = {
+			type: 'status',
+			data: 'ts-websocket-opened',
+		};
+
+		initWs.send(JSON.stringify(msg));
 		term.write('Tailscale WebSocket open.\r\n');
 
 		isOnNewline = true;
@@ -130,22 +150,37 @@ function connectTsWs(url) {
 
 		dialogProg.close();
 
-		if(ev.data.startsWith('ssh-error')) {
-			dialogErr.showModal();
-			return;
-		}else if(ev.data === 'ssh-success') {
-			onSize();
-			return;
-		}
+		/** @type {WsMessage} */
+		const msg = JSON.parse(ev.data);
 
-		term.write(ev.data);
-		isOnNewline = ev.data.endsWith('\r\n');
+		switch(msg.type) {
+			case 'status':
+				switch(msg.data) {
+					case 'ssh-error':
+						dialogErr.showModal();
+						return;
+					case 'ssh-success':
+						onSize();
+						return;
+				}
+				break;
+			case 'info':
+				term.write(msg.data + '\r\n');
+				isOnNewline = true;
+				break;
+			case 'output':
+				term.write(msg.data);
+				isOnNewline = msg.data.endsWith('\r\n');
+				break;
+		}
 	};
 
 	tsWs.onclose = (ev) => {
 		console.log(ev);
 
-		const msg = 'Tailscale WebSocket closed.\r\n';
+		dialogProg.close();
+
+		const msg = `Tailscale WebSocket closed. ${ev.reason || ''}\r\n`;
 		term.write((isOnNewline) ? msg : `\r\n${msg}`);
 
 		isOnNewline = true;
@@ -156,7 +191,13 @@ function connectTsWs(url) {
 
 		dialogProg.close();
 
-		initWs.send('ts-websocket-error');
+		/** @type {WsMessage} */
+		const wsMsg = {
+			type: 'status',
+			data: 'ts-websocket-error',
+		};
+
+		initWs.send(JSON.stringify(wsMsg));
 
 		const msg = 'Tailscale WebSocket error.\r\n';
 		term.write((isOnNewline) ? msg : `\r\n${msg}`);
@@ -181,7 +222,7 @@ function onSize() {
 		data: JSON.stringify({ rows, cols, x: clientWidth, y: clientHeight }),
 	};
 
-	tsWs.send(JSON.stringify(msg))
+	tsWs.send(JSON.stringify(msg));
 }
 
 function updateMachines() {
@@ -273,20 +314,34 @@ function initDialogs() {
 
 		const sshMsg = `ssh-config:${username}:${password}:${address}:${port}`;
 
+		/** @type {WsMessage} */
+		const msg = {
+			type: 'status',
+			data: sshMsg,
+		};
+
+		const msgStr = JSON.stringify(msg);
+
 		if(!tsWs) {
-			initWs.send(sshMsg);
+			initWs.send(msgStr);
 			
 			// Attempt connection to the ts websocket after a delay
 			setTimeout(() => connectTsWs(tsWsUrl), 1000);
 			return;
 		}
 
-		tsWs.send(sshMsg);
+		tsWs.send(msgStr);
 	});
 
 	dialogErr.querySelector('form').addEventListener('submit', (ev) => {
 		if(ev.submitter.name === 'cancel') {
-			(tsWs ?? initWs)?.send('ts-websocket-error');
+			/** @type {WsMessage} */
+			const wsMsg = {
+				type: 'status',
+				data: 'ts-websocket-error',
+			};
+
+			(tsWs ?? initWs)?.send(JSON.stringify(wsMsg));
 			
 			const msg = 'Tailscale WebSocket error.\r\n';
 			term.write((isOnNewline) ? msg : `\r\n${msg}`);

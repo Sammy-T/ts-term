@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 
-	"github.com/gorilla/websocket"
 	ws "github.com/sammy-t/ts-term/internal/websocket"
 	"golang.org/x/crypto/ssh"
 	"tailscale.com/tsnet"
@@ -19,7 +18,14 @@ func reattemptSSH(r *http.Request, server *tsnet.Server, conn *ws.SyncedWebsocke
 	for i := 0; i < 5; i++ {
 		log.Println("Reattempting ssh...")
 
-		conn.WriteMessage(websocket.TextMessage, []byte("ssh-error"))
+		msg := ws.Message{
+			Type: ws.MessageStatus,
+			Data: "ssh-error",
+		}
+
+		if err := conn.WriteJSON(msg); err != nil {
+			return nil, nil, nil, fmt.Errorf("json msg: %v", err)
+		}
 
 		resp, err := awaitConnectionMsg(conn.Conn, 0)
 		if err != nil || resp[0] != "ssh-config" {

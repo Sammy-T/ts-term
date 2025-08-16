@@ -59,8 +59,13 @@ dialog {
 		margin: 0.5rem 0;
 	}
 
+	& form {
+		& > button {
+			margin-top: 0.5rem;
+		}
+	}
+
 	& button {
-		margin-top: 0.5rem;
 		padding: 0.25rem 1rem;
 		border: none;
 		border-radius: 0.15rem;
@@ -70,6 +75,21 @@ dialog {
 
 	& button:hover {
 		background-color: #1a66a8;
+	}
+
+	& button.secondary {
+		background-color: #4a545e;
+	}
+
+	& button.secondary:hover {
+		background-color: #646f7a;
+	}
+
+	& .actions {
+		padding-top: 0.5rem;
+		display: flex;
+		justify-content:space-around;
+		gap: 0.75rem;
 	}
 }
 
@@ -147,5 +167,11 @@ form#config {
 		& label {
 			display: contents;
 		}
+	}
+}
+
+#diag-err {
+	& > p {
+		text-align: center;
 	}
 }

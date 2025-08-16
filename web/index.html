@@ -66,7 +66,7 @@
 					</label>
 				</fieldset>
 
-				<button type="submit">Connect</button>
+				<button>Connect</button>
 			</form>
 		</dialog>
 
@@ -78,7 +78,10 @@
 			<p>Connection failed.</p>
 
 			<form method="dialog">
-				<button autofocus>Retry</button>
+				<div class="actions">
+					<button autofocus>Retry</button>
+					<button class="secondary" name="cancel">Cancel</button>
+				</div>
 			</form>
 		 </dialog>
 	</main>

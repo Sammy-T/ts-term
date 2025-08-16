@@ -144,12 +144,7 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ssh-config:username:password:address:port
-	sshCfg := map[string]string{
-		"username": resp[1],
-		"password": resp[2],
-		"address":  resp[3] + ":" + resp[4],
-	}
+	sshCfg := parseSshConfig(resp)
 
 	go func() {
 		defer conn.Close()
@@ -238,7 +233,16 @@ func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *loc
 		// Create an SSH connection using the tailnet connection
 		sshConn, newChan, reqs, err := ssh.NewClientConn(tsConn, sshCfg["address"], config)
 		if err != nil {
+			sshConn, newChan, reqs, err = reattemptSSH(r, server, conn, config)
+		}
+		// Return if reattempts fail
+		if err != nil {
 			cLog.LessFatalf("sshConn: %v", err)
+			return
+		}
+
+		if err = conn.WriteMessage(websocket.TextMessage, []byte("ssh-success")); err != nil {
+			cLog.LessFatalf("ws write: %v", err)
 			return
 		}
 
@@ -298,6 +302,41 @@ func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *loc
 	return http.HandlerFunc(h)
 }
 
+func reattemptSSH(r *http.Request, server *tsnet.Server, conn *ws.SyncedWebsocket, config *ssh.ClientConfig) (ssh.Conn, <-chan ssh.NewChannel, <-chan *ssh.Request, error) {
+	for i := 0; i < 5; i++ {
+		log.Println("Reattempting ssh...")
+
+		conn.WriteMessage(websocket.TextMessage, []byte("ssh-error"))
+
+		resp, err := awaitConnectionMsg(conn.Conn, 0)
+		if err != nil || resp[0] != "ssh-config" {
+			return nil, nil, nil, err
+		}
+
+		sshCfg := parseSshConfig(resp)
+
+		config.User = sshCfg["username"]
+		config.Auth = []ssh.AuthMethod{
+			ssh.Password(sshCfg["password"]),
+		}
+
+		tsConn, err := server.Dial(r.Context(), "tcp", sshCfg["address"])
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("ts dial: %v", err)
+		}
+
+		sshConn, newChan, reqs, err := ssh.NewClientConn(tsConn, sshCfg["address"], config)
+		if err != nil {
+			log.Printf("ssh reattempt: %v\n", err)
+			continue
+		}
+
+		return sshConn, newChan, reqs, err
+	}
+
+	return nil, nil, nil, fmt.Errorf("max ssh attempts reached")
+}
+
 // awaitConnectionMsg awaits the next notification on the provided Websocket connection
 // and returns the parsed response or an error.
 //
@@ -341,5 +380,14 @@ func awaitConnectionMsg(conn *websocket.Conn, timeout time.Duration) ([]string, 
 		return parsed, errors.New("websocket errored")
 	default:
 		return parsed, fmt.Errorf("invalid msg received. %q", string(msg))
+	}
+}
+
+func parseSshConfig(resp []string) map[string]string {
+	// ssh-config:username:password:address:port
+	return map[string]string{
+		"username": resp[1],
+		"password": resp[2],
+		"address":  resp[3] + ":" + resp[4],
 	}
 }

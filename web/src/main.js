@@ -44,6 +44,13 @@ let peerInfos;
 
 const proto = (location.protocol === 'https:') ? 'wss:' : 'ws:';
 
+/**
+ * Tracks the newline status of received server data output to the terminal UI.
+ * 
+ * Server output will usually contain a newline but returned PTY output might not.
+ */
+let isOnNewline = true;
+
 function connectInitWs() {
 	initWs = new WebSocket(`${proto}//${location.host}/ts`);
 
@@ -88,13 +95,6 @@ function connectInitWs() {
 function connectTsWs(url) {
 	tsWs = new WebSocket(url);
 
-	/**
-	 * Tracks the newline status of received server data output to the terminal UI.
-	 * 
-	 * Server output will usually contain a newline but returned PTY output might not.
-	 */
-	let isOnNewline = true;
-
 	term.onData((data) => {
 		const msg = {
 			type: 'input',
@@ -109,14 +109,22 @@ function connectTsWs(url) {
 
 		initWs.send('ts-websocket-opened');
 		term.write('Tailscale WebSocket open.\r\n');
-
-		onSize();
 	};
 
 	tsWs.onmessage = (ev) => {
 		console.log(ev);
-		term.write(ev.data);
 
+		dialogProg.close();
+
+		if(ev.data.startsWith('ssh-error')) {
+			dialogErr.showModal();
+			return;
+		}else if(ev.data === 'ssh-success') {
+			onSize();
+			return;
+		}
+
+		term.write(ev.data);
 		isOnNewline = ev.data.endsWith('\r\n');
 	};
 
@@ -133,7 +141,6 @@ function connectTsWs(url) {
 		console.log(ev);
 
 		dialogProg.close();
-		// if(initWs.readyState === WebSocket.OPEN) dialogErr.showModal(); //// TODO: err/retry dialog?
 
 		initWs.send('ts-websocket-error');
 
@@ -204,7 +211,37 @@ function onMachineSelect(event) {
 	configForm.querySelector('input[name="address"]').value = address;
 }
 
+/**
+ * @param {Element} container 
+ * @param {KeyboardEvent} event 
+ */
+function handleActionKey(container, event) {
+	const buttons = Array.from(container.querySelectorAll('button'));
+	const focusedIdx = buttons.findIndex((button) => button === document.activeElement);
+
+	let nextFocusIdx = 0;
+
+	switch(event.key) {
+		case 'ArrowLeft':
+			nextFocusIdx = (focusedIdx - 1 >= 0) ? focusedIdx - 1 : buttons.length - 1;
+			break;
+		
+		case 'ArrowRight':
+			nextFocusIdx = (focusedIdx + 1) % buttons.length;
+			break;
+
+		default:
+			return
+	}
+
+	buttons[nextFocusIdx].focus();
+}
+
 function initDialogs() {
+	document.querySelectorAll('.actions').forEach((container) => {
+		container.addEventListener('keydown', (event) => handleActionKey(container, event));
+	});
+
 	machineSelect.addEventListener('input', onMachineSelect);
 	typeSelect.addEventListener('input', onMachineSelect);
 
@@ -218,14 +255,28 @@ function initDialogs() {
 		const username = formData.get('username');
 		const password = formData.get('password');
 
-		// Send the ssh info
-		initWs.send(`ssh-config:${username}:${password}:${address}:${port}`);
+		const sshMsg = `ssh-config:${username}:${password}:${address}:${port}`;
 
-		// Attempt connection to the ts websocket after a delay
-		setTimeout(() => connectTsWs(tsWsUrl), 1000);
+		if(!tsWs) {
+			initWs.send(sshMsg);
+			
+			// Attempt connection to the ts websocket after a delay
+			setTimeout(() => connectTsWs(tsWsUrl), 1000);
+			return;
+		}
+
+		tsWs.send(sshMsg);
 	});
 
 	dialogErr.querySelector('form').addEventListener('submit', (ev) => {
+		if(ev.submitter.name === 'cancel') {
+			(tsWs ?? initWs)?.send('ts-websocket-error');
+			
+			const msg = 'Tailscale WebSocket error.\r\n';
+			term.write((isOnNewline) ? msg : `\r\n${msg}`);
+			return;
+		}
+		
 		dialogConn.showModal();
 	});
 }

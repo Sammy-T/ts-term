@@ -3,27 +3,31 @@ package main
 import (
 	"encoding/json"
 	"log"
-	"os"
+	"time"
 
-	"github.com/creack/pty"
-	"github.com/gorilla/websocket"
+	ws "github.com/sammy-t/ts-term/internal/websocket"
+	"golang.org/x/crypto/ssh"
 )
 
-type wsMessage struct {
-	Type string `json:"type"`
-	Data string `json:"data"`
+type winSize struct {
+	Rows int `json:"rows"`
+	Cols int `json:"cols"`
+	X    int `json:"x"`
+	Y    int `json:"y"`
 }
 
-// ptyToWs reads PTY output and writes it to the WebSocket.
+const ioDelay time.Duration = 10 * time.Millisecond
+
+// ptyToWs reads PTY error output and writes it to the WebSocket.
 //
 // NOTE: The WebSocket and PTY are closed when the PTY
 // errors or closes.
-func ptyToWs(ptmx *os.File, conn *websocket.Conn, onClosed func()) {
-	log.Println("Reading pty.")
+func ptyErrToWs(session *ssh.Session, conn *ws.SyncedWebsocket, onClosed func()) {
+	log.Println("Reading pty err...")
 
 	defer func() {
 		conn.Close()
-		ptmx.Close()
+		session.Close()
 
 		if onClosed != nil {
 			onClosed()
@@ -32,15 +36,82 @@ func ptyToWs(ptmx *os.File, conn *websocket.Conn, onClosed func()) {
 
 	b := make([]byte, bufferSize)
 
+	errPipe, err := session.StderrPipe()
+	if err != nil {
+		log.Printf("sess err: %v", err)
+		return
+	}
+
 	for {
-		n, err := ptmx.Read(b)
-		if err != nil {
+		time.Sleep(ioDelay)
+
+		n, err := errPipe.Read(b)
+		if err != nil && n > 0 {
+			log.Printf("read err: %v", err)
+			return
+		}
+
+		if n == 0 {
+			continue
+		}
+
+		msg := ws.Message{
+			Type: ws.MessageOutput,
+			Data: string(b[:n]),
+		}
+
+		// log.Printf("read err [%d] %q", n, b[:n])
+		if err = conn.WriteJSON(msg); err != nil {
+			log.Printf("ws write: %v", err)
+			return
+		}
+	}
+}
+
+// ptyToWs reads PTY output and writes it to the WebSocket.
+//
+// NOTE: The WebSocket and PTY are closed when the PTY
+// errors or closes.
+func ptyToWs(session *ssh.Session, conn *ws.SyncedWebsocket, onClosed func()) {
+	log.Println("Reading pty...")
+
+	defer func() {
+		conn.Close()
+		session.Close()
+
+		if onClosed != nil {
+			onClosed()
+		}
+	}()
+
+	b := make([]byte, bufferSize)
+
+	outPipe, err := session.StdoutPipe()
+	if err != nil {
+		log.Printf("sess out: %v", err)
+		return
+	}
+
+	for {
+		time.Sleep(ioDelay)
+
+		n, err := outPipe.Read(b)
+		if err != nil && n > 0 {
 			log.Printf("read: %v", err)
 			return
 		}
 
-		// log.Printf("[%d] %q", n, b[:n])
-		if err = conn.WriteMessage(websocket.TextMessage, b[:n]); err != nil {
+		if n == 0 {
+			continue
+		}
+
+		msg := ws.Message{
+			Type: ws.MessageOutput,
+			Data: string(b[:n]),
+		}
+
+		// log.Printf("read [%d] %q", n, b[:n])
+		if err = conn.WriteJSON(msg); err != nil {
 			log.Printf("ws write: %v", err)
 			return
 		}
@@ -51,20 +122,26 @@ func ptyToWs(ptmx *os.File, conn *websocket.Conn, onClosed func()) {
 //
 // NOTE: The WebSocket and PTY are closed when the Websocket
 // connection errors or closes.
-func wsToPty(conn *websocket.Conn, ptmx *os.File, onClosed func()) {
-	log.Println("Reading websocket.")
+func wsToPty(conn *ws.SyncedWebsocket, session *ssh.Session, onClosed func()) {
+	log.Println("Reading websocket...")
 
 	defer func() {
 		conn.Close()
-		ptmx.Close()
+		session.Close()
 
 		if onClosed != nil {
 			onClosed()
 		}
 	}()
 
+	inPipe, err := session.StdinPipe()
+	if err != nil {
+		log.Printf("sess in: %v", err)
+		return
+	}
+
 	for {
-		var msg wsMessage
+		var msg ws.Message
 
 		if err := conn.ReadJSON(&msg); err != nil {
 			log.Printf("Websocket read: %v\n", err)
@@ -72,19 +149,21 @@ func wsToPty(conn *websocket.Conn, ptmx *os.File, onClosed func()) {
 		}
 
 		switch msg.Type {
-		case "input":
+		case ws.MessageInput:
 			// log.Printf("ws text: %v, %q", msg.Type, msg.Data)
-			ptmx.Write([]byte(msg.Data))
-		case "size":
+			if n, err := inPipe.Write([]byte(msg.Data)); err != nil {
+				log.Printf("ws write: [%v] %v", n, err)
+			}
+		case ws.MessageSize:
 			log.Printf("size %v\n", msg.Data)
 
-			var size pty.Winsize
+			var size winSize
 			if err := json.Unmarshal([]byte(msg.Data), &size); err != nil {
 				log.Printf("size: %v\n", err)
 				break
 			}
 
-			if err := pty.Setsize(ptmx, &size); err != nil {
+			if err := session.WindowChange(size.Rows, size.Cols); err != nil {
 				log.Printf("set size: %v\n", err)
 			}
 		default:

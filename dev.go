@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 )
 
-func startDevServer() {
+func startDevServer(pkgManager string) {
 	log.Println("Starting Vite dev server...")
 
 	cwDir, err := os.Getwd()
@@ -20,17 +20,24 @@ func startDevServer() {
 
 	cmdDir := filepath.Join(cwDir, "web")
 
-	cmdInst := exec.Command("npm", "i")
+	cmdInst := exec.Command(pkgManager, "i")
 	cmdInst.Dir = cmdDir
 	cmdInst.Stdout = os.Stdout
 	cmdInst.Stderr = os.Stderr
 
 	// Run install and await
 	if err = cmdInst.Run(); err != nil {
-		log.Fatalf("Npm install: %v", err)
+		if pkgManager != "npm" {
+			log.Printf("%v install failed: %v.\nFalling back to npm...\n", pkgManager, err)
+
+			startDevServer("npm")
+			return
+		}
+
+		log.Fatalf("%v install: %v", pkgManager, err)
 	}
 
-	cmd := exec.Command("npm", "run", "dev")
+	cmd := exec.Command(pkgManager, "run", "dev")
 	cmd.Dir = cmdDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

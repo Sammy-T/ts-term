@@ -16,12 +16,6 @@ This project uses the following third-party libraries or assets.
 - License: BSD-3
 - License Link: <https://github.com/tailscale/tailscale/blob/main/LICENSE>
 
-### pty
-
-- Source: <https://github.com/creack/pty>
-- License: MIT
-- License Link: <https://github.com/creack/pty/blob/master/LICENSE>
-
 ### websocket
 
 - Source: <https://github.com/gorilla/websocket>

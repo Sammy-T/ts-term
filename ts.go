@@ -12,10 +12,17 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	ws "github.com/sammy-t/ts-term/internal/websocket"
 	"tailscale.com/client/local"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tsnet"
 )
+
+type PeerConnInfo struct {
+	Domain      string   `json:"domain"`
+	ShortDomain string   `json:"shortDomain"`
+	Ips         []string `json:"ips"`
+}
 
 func createHostName() string {
 	uuid, err := uuid.NewV7()
@@ -36,7 +43,7 @@ func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, con
 	for i := 0; i < 600; i++ {
 		status, err := client.Status(r.Context())
 		if err != nil {
-			return fmt.Errorf("ts status %q: %v", status.BackendState, err)
+			return fmt.Errorf("ts status %q: %w", status.BackendState, err)
 		}
 
 		switch status.BackendState {
@@ -45,27 +52,31 @@ func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, con
 				break
 			}
 
-			msg := fmt.Sprintf("Auth required. Go to: %v\r\n", status.AuthURL)
+			wsMsg := ws.Message{
+				Type: ws.MessageInfo,
+				Data: fmt.Sprintf("Auth required. Go to: %v", status.AuthURL),
+			}
 
-			if err = conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
-				return fmt.Errorf("ws write status %q: %v", status.BackendState, err)
+			if err = conn.WriteJSON(wsMsg); err != nil {
+				return fmt.Errorf("ws write status %q: %w", status.BackendState, err)
 			}
 
 			authDelivered = true
 		case "Running":
-			// Waiting a bit might prevent the frontend from initiating
-			// the ts WebSocket connection too quickly.
-			time.Sleep(1 * time.Second)
-
 			tsIp4, tsIp6 := server.TailscaleIPs()
 			hostname := status.Self.HostName
 
-			msg := fmt.Sprintf("Tailscale machine %v at %v %v\r\n", hostname, tsIp4, tsIp6)
+			msg := fmt.Sprintf("Tailscale machine %v at %v %v", hostname, tsIp4, tsIp6)
 
-			if err = conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
-				return fmt.Errorf("ws write status %q: %v", status.BackendState, err)
+			wsMsg := ws.Message{
+				Type: ws.MessageInfo,
+				Data: msg,
 			}
-			log.Print(msg)
+
+			if err = conn.WriteJSON(wsMsg); err != nil {
+				return fmt.Errorf("ws write status %q: %w", status.BackendState, err)
+			}
+			log.Println(msg)
 
 			return nil
 		}
@@ -75,41 +86,16 @@ func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, con
 
 	msg := fmt.Sprintf("%v init timed out.", server.Hostname)
 
-	if err := conn.WriteMessage(websocket.TextMessage, []byte(msg+"\r\n")); err != nil {
-		return fmt.Errorf("ws write: %v", err)
+	wsMsg := ws.Message{
+		Type: ws.MessageError,
+		Data: msg,
+	}
+
+	if err := conn.WriteJSON(wsMsg); err != nil {
+		return fmt.Errorf("ws write: %w", err)
 	}
 
 	return errors.New(msg)
-}
-
-// awaitTsWsConnection uses the provided Websocket to await notification
-// of a successful TS WebSocket connection. An error is returned on an
-// error notification or on a timeout.
-func awaitTsWsConnection(conn *websocket.Conn) error {
-	go func() {
-		time.Sleep(30 * time.Second)
-
-		msg := websocket.FormatCloseMessage(websocket.CloseGoingAway, "websocket timed out.")
-		conn.WriteMessage(websocket.CloseMessage, msg)
-	}()
-
-	msgType, msg, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("read err: %v", err)
-	}
-
-	if msgType != websocket.TextMessage {
-		return fmt.Errorf("invalid msg type received. [%v]", msgType)
-	}
-
-	switch string(msg) {
-	case "ts-websocket-opened":
-		return nil
-	case "ts-websocket-error":
-		return errors.New("websocket errored.")
-	default:
-		return fmt.Errorf("invalid msg received. %q", string(msg))
-	}
 }
 
 // createUpgraderTs creates a WebSocket Upgrader with a CheckOrigin function
@@ -125,7 +111,7 @@ func createUpgraderTs(client *local.Client) websocket.Upgrader {
 			log.Fatalf("ts status %q: %v", status.BackendState, err)
 		}
 
-		validOriginHosts := getTailnetAddresses(status)
+		validOriginHosts := getValidHosts(status)
 
 		host := r.Host
 		originHdr := r.Header.Get("Origin")
@@ -153,9 +139,9 @@ func createUpgraderTs(client *local.Client) websocket.Upgrader {
 	return tsUpgrader
 }
 
-// getTailnetAddresses returns all the Tailscale domains and IP addresses
+// getValidHosts returns all the Tailscale domains and IP addresses
 // on the Tailnet.
-func getTailnetAddresses(status *ipnstate.Status) []string {
+func getValidHosts(status *ipnstate.Status) []string {
 	domain := status.Self.DNSName
 	shortDomain := strings.Split(domain, ".")[0]
 	tsIps := status.TailscaleIPs
@@ -179,4 +165,35 @@ func getTailnetAddresses(status *ipnstate.Status) []string {
 	}
 
 	return addresses
+}
+
+func getPeerConnInfo(r *http.Request, client *local.Client) ([]PeerConnInfo, error) {
+	status, err := client.Status(r.Context())
+	if err != nil {
+		return nil, fmt.Errorf("ts status %q: %w", status.BackendState, err)
+	}
+
+	infos := []PeerConnInfo{}
+
+	for _, peerStatus := range status.Peer {
+		domain := peerStatus.DNSName
+		shortDomain := strings.Split(domain, ".")[0]
+		tsIps := peerStatus.TailscaleIPs
+
+		ips := []string{}
+
+		for _, ip := range tsIps {
+			ips = append(ips, ip.String())
+		}
+
+		info := PeerConnInfo{
+			Domain:      domain,
+			ShortDomain: shortDomain,
+			Ips:         ips,
+		}
+
+		infos = append(infos, info)
+	}
+
+	return infos, nil
 }

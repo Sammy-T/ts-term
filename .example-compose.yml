@@ -1,0 +1,21 @@
+name: ts-term
+
+services:
+  ts-term:
+    image: sammytd/ts-term
+    hostname: ts-term
+    # env_file: .example.env
+    ports:
+      - "4000:3000"
+    networks:
+      - ts-term-net
+    volumes:
+      - ts-term-data:/home/appuser/.ssh
+    restart: unless-stopped
+
+volumes:
+  ts-term-data:
+
+networks:
+  ts-term-net:
+    name: ts-term-net

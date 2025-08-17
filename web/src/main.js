@@ -22,6 +22,9 @@ const dialogConn = document.querySelector('#diag-conn');
 const dialogProg = document.querySelector('#diag-prog');
 
 /** @type {HTMLDialogElement} */
+const dialogHosts = document.querySelector('#diag-host-prompt');
+
+/** @type {HTMLDialogElement} */
 const dialogErr = document.querySelector('#diag-err');
 
 /** @type {HTMLFormElement} */
@@ -155,9 +158,15 @@ function connectTsWs(url) {
 
 		switch(msg.type) {
 			case 'status':
-				switch(msg.data) {
+				switch(msg.data.split(':')[0]) {
 					case 'ssh-error':
 						dialogErr.showModal();
+						return;
+					case 'ssh-host':
+						const host = dialogHosts.querySelector('#host');
+						host.innerHTML = msg.data.split(':').at(1);
+
+						dialogHosts.showModal();
 						return;
 					case 'ssh-success':
 						onSize();
@@ -331,6 +340,20 @@ function initDialogs() {
 		}
 
 		tsWs.send(msgStr);
+	});
+
+	dialogHosts.querySelector('form').addEventListener('submit', (ev) => {
+		dialogProg.showModal();
+
+		let action = (ev.submitter.name === 'cancel') ? 'no' : 'yes';
+		
+		/** @type {WsMessage} */
+		const wsMsg = {
+			type: 'status',
+			data: `ssh-host-action:${action}`,
+		};
+
+		tsWs.send(JSON.stringify(wsMsg));
 	});
 
 	dialogErr.querySelector('form').addEventListener('submit', (ev) => {

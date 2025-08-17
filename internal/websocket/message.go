@@ -12,6 +12,7 @@ const (
 	MessageError  MessageType = "error"
 
 	StatusSshCfg   string = "ssh-config"
+	StatusSshHost  string = "ssh-host-action"
 	StatusWsOpened string = "ts-websocket-opened"
 	StatusWsError  string = "ts-websocket-error"
 )

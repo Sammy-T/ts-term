@@ -19,7 +19,6 @@ import (
 	cnLog "github.com/sammy-t/ts-term/internal/log"
 	ws "github.com/sammy-t/ts-term/internal/websocket"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/knownhosts"
 	"tailscale.com/client/local"
 	"tailscale.com/tsnet"
 )
@@ -237,11 +236,7 @@ func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *loc
 			}
 		}
 
-		hostKeyCb, err := knownhosts.New(knownHostsPath)
-		if err != nil {
-			cLog.LessFatalf("known hosts cb: %v", err)
-			return
-		}
+		hostKeyCb := getHostKeyCallback(conn, knownHostsPath)
 
 		config := &ssh.ClientConfig{
 			User: sshCfg["username"],
@@ -376,7 +371,7 @@ func awaitConnectionMsg(conn *websocket.Conn, timeout time.Duration) ([]string, 
 	parsed = strings.Split(string(msg.Data), ":")
 
 	switch parsed[0] {
-	case ws.StatusSshCfg, ws.StatusWsOpened:
+	case ws.StatusSshCfg, ws.StatusSshHost, ws.StatusWsOpened:
 		return parsed, nil
 	case ws.StatusWsError:
 		return parsed, errors.New("websocket errored")

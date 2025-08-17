@@ -43,7 +43,7 @@ func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, con
 	for i := 0; i < 600; i++ {
 		status, err := client.Status(r.Context())
 		if err != nil {
-			return fmt.Errorf("ts status %q: %v", status.BackendState, err)
+			return fmt.Errorf("ts status %q: %w", status.BackendState, err)
 		}
 
 		switch status.BackendState {
@@ -58,7 +58,7 @@ func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, con
 			}
 
 			if err = conn.WriteJSON(wsMsg); err != nil {
-				return fmt.Errorf("ws write status %q: %v", status.BackendState, err)
+				return fmt.Errorf("ws write status %q: %w", status.BackendState, err)
 			}
 
 			authDelivered = true
@@ -74,7 +74,7 @@ func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, con
 			}
 
 			if err = conn.WriteJSON(wsMsg); err != nil {
-				return fmt.Errorf("ws write status %q: %v", status.BackendState, err)
+				return fmt.Errorf("ws write status %q: %w", status.BackendState, err)
 			}
 			log.Println(msg)
 
@@ -92,7 +92,7 @@ func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, con
 	}
 
 	if err := conn.WriteJSON(wsMsg); err != nil {
-		return fmt.Errorf("ws write: %v", err)
+		return fmt.Errorf("ws write: %w", err)
 	}
 
 	return errors.New(msg)
@@ -170,7 +170,7 @@ func getValidHosts(status *ipnstate.Status) []string {
 func getPeerConnInfo(r *http.Request, client *local.Client) ([]PeerConnInfo, error) {
 	status, err := client.Status(r.Context())
 	if err != nil {
-		return nil, fmt.Errorf("ts status %q: %v", status.BackendState, err)
+		return nil, fmt.Errorf("ts status %q: %w", status.BackendState, err)
 	}
 
 	infos := []PeerConnInfo{}

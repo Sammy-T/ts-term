@@ -261,12 +261,12 @@ func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *loc
 		// Create an SSH connection using the tailnet connection
 		sshConn, newChan, reqs, err := ssh.NewClientConn(tsConn, sshCfg["address"], config)
 		if err != nil {
-			cLog.Printf("sshConn: %v", err)
+			cLog.Printf("ssh conn: %v", err)
 			sshConn, newChan, reqs, err = reattemptSSH(r, server, conn, config)
 		}
 		// Return if reattempts fail
 		if err != nil {
-			cLog.LessFatalf("sshConn: %v", err)
+			cLog.LessFatalf("ssh conn: %v", err)
 			return
 		}
 
@@ -366,7 +366,7 @@ func awaitConnectionMsg(conn *websocket.Conn, timeout time.Duration) ([]string, 
 	var msg ws.Message
 
 	if err := conn.ReadJSON(&msg); err != nil {
-		return parsed, fmt.Errorf("read err: %v", err)
+		return parsed, fmt.Errorf("read err: %w", err)
 	}
 
 	if msg.Type != ws.MessageStatus {

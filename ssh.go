@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -24,7 +25,7 @@ func reattemptSSH(r *http.Request, server *tsnet.Server, conn *ws.SyncedWebsocke
 		}
 
 		if err := conn.WriteJSON(msg); err != nil {
-			return nil, nil, nil, fmt.Errorf("json msg: %v", err)
+			return nil, nil, nil, fmt.Errorf("json msg: %w", err)
 		}
 
 		resp, err := awaitConnectionMsg(conn.Conn, 0)
@@ -44,7 +45,7 @@ func reattemptSSH(r *http.Request, server *tsnet.Server, conn *ws.SyncedWebsocke
 
 		tsConn, err := server.Dial(r.Context(), "tcp", sshCfg["address"])
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("ts dial: %v", err)
+			return nil, nil, nil, fmt.Errorf("ts dial: %w", err)
 		}
 
 		sshConn, newChan, reqs, err := ssh.NewClientConn(tsConn, sshCfg["address"], config)
@@ -57,7 +58,7 @@ func reattemptSSH(r *http.Request, server *tsnet.Server, conn *ws.SyncedWebsocke
 		return sshConn, newChan, reqs, err
 	}
 
-	return nil, nil, nil, fmt.Errorf("max ssh attempts reached")
+	return nil, nil, nil, errors.New("max ssh attempts reached")
 }
 
 func parseSshConfig(resp []string) map[string]string {

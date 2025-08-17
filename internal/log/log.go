@@ -33,6 +33,8 @@ func (c ConnLog) Printf(format string, v ...any) {
 // LessFatalf writes the error to the log and WebSocket.
 // Then closes the WebSocket and net listener.
 func (c ConnLog) LessFatalf(format string, v ...any) {
+	log.Printf(format, v...)
+
 	msg := websocket.FormatCloseMessage(websocket.CloseGoingAway, fmt.Sprintf(format, v...))
 
 	if err := c.Conn.WriteMessage(websocket.CloseMessage, msg); err != nil {

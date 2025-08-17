@@ -1,13 +1,8 @@
 # ts-term
 
-ts-term serves a browser-based terminal interface and uses ephemeral Tailscale nodes for each session. It allows you to run commands using the pseudo-terminal of the machine it's hosted on.
+ts-term serves a browser-based terminal interface and provides SSH through ephemeral Tailscale nodes.
 
-> [!IMPORTANT]
-> ts-term doesn't directly create SSH connections. Once connected to the terminal, you must run the `ssh` command to connect to the machine you want to remote into.
-> 
-> If you would prefer to directly create an SSH connection, Tailscale's [SSH Console](https://tailscale.com/kb/1216/tailscale-ssh-console) is probably what you're looking for.
-
-ts-term is intended to be hosted from inside a Docker container on a machine in your tailnet. This way, you can access the service through your tailnet and connect to the container's terminal. Then you can run commands available within the container including `ssh`-ing into other nodes on your tailnet.
+ts-term is intended to be hosted from inside a [Docker](https://www.docker.com/) container on a machine in your tailnet. This way, you can access the service through your tailnet.<br>Each session runs through ephemeral Tailscale nodes created under the user's identity.
 
 [Tailscale SSH](https://tailscale.com/kb/1193/tailscale-ssh) and their [SSH Console](https://tailscale.com/kb/1216/tailscale-ssh-console) are great tools for remote access to machines on your tailnet. If they suit your needs, I definitely recommend them.<br>
 However, I wanted something I could self-host and which didn't take over my machine's `ssh` command so I made this project.
@@ -45,19 +40,17 @@ See <https://docs.docker.com/reference/cli/docker/container/run/> for full refer
 | --- | --- | --- |
 | TS_TERM_ADDR | The address the ts-term server runs on. | `:3000` |
 | TS_CONTROL_URL | The coordination server to use. | The default Tailscale server |
+| TS_TERM_KNOWN_HOSTS | The absolute path to the known_hosts file. | `<user-home>/.ssh/known_hosts` |
 
 ## Development
 
 ### Run the dev server
 
-> [!IMPORTANT]
-> ts-term requires a Linux environment to run. If you're on Windows, you can use WSL.
-
 Requirements:
 
-- Node.js
-- Go
-- bash
+- [Node.js](https://nodejs.org/)
+- [pnpm](https://pnpm.io/) (optional)
+- [Go](https://go.dev/)
 
 Create a `.env` file in the project root if you want to customize ts-term. See [environment variables](#environment-variables).
 

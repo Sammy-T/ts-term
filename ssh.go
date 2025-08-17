@@ -48,14 +48,14 @@ func getHostKeyCallback(conn *ws.SyncedWebsocket, knownHostsPath string) ssh.Hos
 			if resp[1] == "yes" {
 				hostLine := knownhosts.Line([]string{hostname}, key)
 
-				f, fileErr := os.OpenFile(knownHostsPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				file, fileErr := os.OpenFile(knownHostsPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 				if fileErr != nil {
 					log.Printf("file open: %v\n", fileErr)
 					return fileErr
 				}
-				defer f.Close()
+				defer file.Close()
 
-				if _, fileErr := f.WriteString(hostLine + "\n"); fileErr != nil {
+				if _, fileErr := file.WriteString(hostLine + "\n"); fileErr != nil {
 					return fileErr
 				}
 

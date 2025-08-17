@@ -74,6 +74,17 @@
 			<progress></progress>
 		</dialog>
 
+		<dialog id="diag-host-prompt" closedBy="none">
+			<p>Host <span id="host">0.0.0.0</span> is unknown.<br>Add host and continue connecting?</p>
+
+			<form method="dialog">
+				<div class="actions">
+					<button autofocus>Yes</button>
+					<button class="secondary" name="cancel">No</button>
+				</div>
+			</form>
+		</dialog>
+
 		 <dialog id="diag-err" closedBy="none">
 			<p>Connection failed.</p>
 

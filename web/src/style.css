@@ -50,6 +50,10 @@ dialog {
 	background-color: var(--dialog-color);
 	border: 2px solid var(--dialog-border-color);
 
+	& > p {
+		text-align: center;
+	}
+
 	& h2 {
 		margin: 0;
 		margin-bottom: 1rem;
@@ -88,7 +92,7 @@ dialog {
 	& .actions {
 		padding-top: 0.5rem;
 		display: flex;
-		justify-content:space-around;
+		justify-content: center;
 		gap: 0.75rem;
 	}
 }

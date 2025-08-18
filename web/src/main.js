@@ -71,7 +71,7 @@ function connectInitWs() {
 	};
 
 	initWs.onmessage = (ev) => {
-		console.log(ev);
+		// console.log(ev);
 
 		/** @type {WsMessage} */
 		const msg = JSON.parse(ev.data);
@@ -100,20 +100,24 @@ function connectInitWs() {
 		isOnNewline = true;
 	};
 
+	initWs.onerror = (ev) => {
+		dialogProg.close();
+
+		console.log(ev);
+		term.write('Init WebSocket error.\r\n');
+
+		isOnNewline = true;
+	}
+
 	initWs.onclose = (ev) => {
+		dialogProg.close();
+
 		console.log(ev);
 		const msg = `Init WebSocket closed. ${ev.reason || ''}\r\n`;
 		term.write((isOnNewline) ? msg : `\r\n${msg}`);
 
 		isOnNewline = true;
 	};
-
-	initWs.onerror = (ev) => {
-		console.log(ev);
-		term.write('Init WebSocket error.\r\n');
-
-		isOnNewline = true;
-	}
 
 	window.addEventListener('pagehide', () => {
 		initWs.close();
@@ -149,7 +153,7 @@ function connectTsWs(url) {
 	};
 
 	tsWs.onmessage = (ev) => {
-		console.log(ev);
+		// console.log(ev);
 
 		dialogProg.close();
 
@@ -184,17 +188,6 @@ function connectTsWs(url) {
 		}
 	};
 
-	tsWs.onclose = (ev) => {
-		console.log(ev);
-
-		dialogProg.close();
-
-		const msg = `Tailscale WebSocket closed. ${ev.reason || ''}\r\n`;
-		term.write((isOnNewline) ? msg : `\r\n${msg}`);
-
-		isOnNewline = true;
-	};
-
 	tsWs.onerror = (ev) => {
 		console.log(ev);
 
@@ -213,6 +206,17 @@ function connectTsWs(url) {
 
 		isOnNewline = true;
 	}
+
+	tsWs.onclose = (ev) => {
+		console.log(ev);
+
+		dialogProg.close();
+
+		const msg = `Tailscale WebSocket closed. ${ev.reason || ''}\r\n`;
+		term.write((isOnNewline) ? msg : `\r\n${msg}`);
+
+		isOnNewline = true;
+	};
 
 	window.addEventListener('pagehide', () => {
 		tsWs.close();

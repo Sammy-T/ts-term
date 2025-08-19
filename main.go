@@ -151,7 +151,7 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sshCfg := parseSshConfig(resp)
+	sshCfg := parseSshConfig(parsed)
 
 	go func() {
 		defer conn.Close()
@@ -266,8 +266,7 @@ func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *loc
 		}
 
 		wsMsg = ws.Message{
-			Type: ws.MessageStatus,
-			Data: "ssh-success",
+			Type: ws.MessageSshSuccess,
 		}
 
 		if err = conn.WriteJSON(wsMsg); err != nil {
@@ -364,16 +363,12 @@ func awaitConnectionMsg(conn *websocket.Conn, timeout time.Duration) ([]string, 
 		return parsed, fmt.Errorf("read err: %w", err)
 	}
 
-	if msg.Type != ws.MessageStatus {
-		return parsed, fmt.Errorf("invalid msg received. [%v] %q", msg.Type, msg.Data)
-	}
-
 	parsed = strings.Split(string(msg.Data), ":")
 
-	switch parsed[0] {
-	case ws.StatusSshCfg, ws.StatusSshHost, ws.StatusWsOpened:
+	switch msg.Type {
+	case ws.MessageSshCfg, ws.MessageSshHost, ws.MessageWsOpened:
 		return parsed, nil
-	case ws.StatusWsError:
+	case ws.MessageWsError:
 		return parsed, errors.New("websocket errored")
 	default:
 		return parsed, fmt.Errorf("invalid msg received. [%v] %q", msg.Type, msg.Data)

@@ -29,8 +29,8 @@ func getHostKeyCallback(conn *ws.SyncedWebsocket, knownHostsPath string) ssh.Hos
 			log.Printf("key unknown: %v\n", keyErr)
 
 			wsMsg := ws.Message{
-				Type: ws.MessageStatus,
-				Data: fmt.Sprintf("ssh-host:%v", hostname),
+				Type: ws.MessageSshHost,
+				Data: hostname,
 			}
 
 			// Notify the user
@@ -82,8 +82,7 @@ func reattemptSSH(r *http.Request, server *tsnet.Server, conn *ws.SyncedWebsocke
 		log.Println("Reattempting ssh...")
 
 		msg := ws.Message{
-			Type: ws.MessageStatus,
-			Data: "ssh-error",
+			Type: ws.MessageSshErr,
 		}
 
 		if err := conn.WriteJSON(msg); err != nil {
@@ -124,11 +123,11 @@ func reattemptSSH(r *http.Request, server *tsnet.Server, conn *ws.SyncedWebsocke
 }
 
 func parseSshConfig(resp []string) map[string]string {
-	// ssh-config:username:password:address:port
+	// username:password:address:port
 	return map[string]string{
-		"username": resp[1],
-		"password": resp[2],
-		"address":  resp[3] + ":" + resp[4],
+		"username": resp[0],
+		"password": resp[1],
+		"address":  resp[2] + ":" + resp[3],
 	}
 }
 

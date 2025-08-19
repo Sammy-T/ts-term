@@ -28,7 +28,7 @@ func startDevServer(pkgManager string) {
 	// Run install and await
 	if err = cmdInst.Run(); err != nil {
 		if pkgManager != "npm" {
-			log.Printf("%v install failed: %v.\nFalling back to npm...\n", pkgManager, err)
+			log.Printf("%v install failed: %v.\nFalling back to npm...", pkgManager, err)
 
 			startDevServer("npm")
 			return
@@ -47,7 +47,7 @@ func startDevServer(pkgManager string) {
 		log.Fatalf("Vite dev server: %v", err)
 	}
 
-	log.Printf("Vite dev server running as pid %v\n", cmd.Process.Pid)
+	log.Printf("Vite dev server running as pid %v", cmd.Process.Pid)
 }
 
 func createDevHandler() http.Handler {

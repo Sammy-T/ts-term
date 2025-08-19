@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -50,4 +51,21 @@ func (s SyncedWebsocket) ReadJSON(v any) error {
 // Close closes the underlying network connection without sending or waiting for a close message.
 func (s SyncedWebsocket) Close() error {
 	return s.Conn.Close()
+}
+
+// SetReadDeadline sets the read deadline on the underlying network connection.
+// After a read has timed out, the websocket connection state is corrupt
+// and all future reads will return an error. A zero value for t means reads will not time out.
+func (s SyncedWebsocket) SetReadDeadline(t time.Time) error {
+	return s.Conn.SetReadDeadline(t)
+}
+
+// SetPongHandler sets the handler for pong messages received from the peer.
+// The appData argument to h is the PONG message application data. The default pong handler does nothing.
+//
+// The handler function is called from the NextReader, ReadMessage and message reader Read methods.
+// The application must read the connection to process pong messages as described in the
+// section on Control Messages above.
+func (s SyncedWebsocket) SetPongHandler(h func(appData string) error) {
+	s.Conn.SetPongHandler(h)
 }

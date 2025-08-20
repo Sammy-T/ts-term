@@ -71,7 +71,7 @@ function connectInitWs() {
 	};
 
 	initWs.onmessage = (ev) => {
-		// console.log(ev);
+		console.log(ev);
 
 		/** @type {WsMessage} */
 		const msg = JSON.parse(ev.data);
@@ -111,6 +111,7 @@ function connectInitWs() {
 
 	initWs.onclose = (ev) => {
 		dialogProg.close();
+		dialogConn.close();
 
 		console.log(ev);
 		const msg = `Init WebSocket closed. ${ev.reason || ''}\r\n`;
@@ -142,8 +143,7 @@ function connectTsWs(url) {
 
 		/** @type {WsMessage} */
 		const msg = {
-			type: 'status',
-			data: 'ts-websocket-opened',
+			type: 'ts-websocket-opened',
 		};
 
 		initWs.send(JSON.stringify(msg));
@@ -153,7 +153,7 @@ function connectTsWs(url) {
 	};
 
 	tsWs.onmessage = (ev) => {
-		// console.log(ev);
+		console.log(ev);
 
 		dialogProg.close();
 
@@ -161,22 +161,18 @@ function connectTsWs(url) {
 		const msg = JSON.parse(ev.data);
 
 		switch(msg.type) {
-			case 'status':
-				switch(msg.data.split(':')[0]) {
-					case 'ssh-error':
-						dialogErr.showModal();
-						return;
-					case 'ssh-host':
-						const host = dialogHosts.querySelector('#host');
-						host.innerHTML = msg.data.split(':').at(1);
+			case 'ssh-error':
+				dialogErr.showModal();
+				return;
+			case 'ssh-host':
+				const host = dialogHosts.querySelector('#host');
+				host.innerHTML = msg.data;
 
-						dialogHosts.showModal();
-						return;
-					case 'ssh-success':
-						onSize();
-						return;
-				}
-				break;
+				dialogHosts.showModal();
+				return;
+			case 'ssh-success':
+				onSize();
+				return;
 			case 'info':
 				term.write(msg.data + '\r\n');
 				isOnNewline = true;
@@ -195,8 +191,7 @@ function connectTsWs(url) {
 
 		/** @type {WsMessage} */
 		const wsMsg = {
-			type: 'status',
-			data: 'ts-websocket-error',
+			type: 'ts-websocket-error',
 		};
 
 		initWs.send(JSON.stringify(wsMsg));
@@ -325,11 +320,11 @@ function initDialogs() {
 		const username = formData.get('username');
 		const password = formData.get('password');
 
-		const sshMsg = `ssh-config:${username}:${password}:${address}:${port}`;
+		const sshMsg = `${username}:${password}:${address}:${port}`;
 
 		/** @type {WsMessage} */
 		const msg = {
-			type: 'status',
+			type: 'ssh-config',
 			data: sshMsg,
 		};
 
@@ -353,8 +348,8 @@ function initDialogs() {
 		
 		/** @type {WsMessage} */
 		const wsMsg = {
-			type: 'status',
-			data: `ssh-host-action:${action}`,
+			type: 'ssh-host-action',
+			data: action,
 		};
 
 		tsWs.send(JSON.stringify(wsMsg));
@@ -364,8 +359,7 @@ function initDialogs() {
 		if(ev.submitter.name === 'cancel') {
 			/** @type {WsMessage} */
 			const wsMsg = {
-				type: 'status',
-				data: 'ts-websocket-error',
+				type: 'ts-websocket-error',
 			};
 
 			(tsWs ?? initWs)?.send(JSON.stringify(wsMsg));

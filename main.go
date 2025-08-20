@@ -48,7 +48,7 @@ func main() {
 		addr = ":3000"
 	}
 
-	log.Printf("Serving ts-term on %v\n", addr)
+	log.Printf("Serving ts-term on %v", addr)
 	log.Fatal(http.ListenAndServe(addr, nil))
 }
 
@@ -62,13 +62,20 @@ func getWebHandler() http.Handler {
 }
 
 func tsHandler(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Received request %q\n", r.URL.Path)
+	log.Printf("Received request %q", r.URL.Path)
 
-	conn, err := upgrader.Upgrade(w, r, nil)
+	wsConn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Fatalf("Websocket: %v", err)
 	}
+
+	conn := &ws.SyncedWebsocket{
+		Conn: wsConn,
+		Mu:   &sync.Mutex{},
+	}
 	defer conn.Close()
+
+	hub := ws.NewHub(conn)
 
 	hostname := createHostName()
 
@@ -93,10 +100,10 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 		tsAddr = ":443"
 	}
 
-	log.Printf("Creating tsnet server %q...\n", hostname)
+	log.Printf("Creating tsnet server %q...", hostname)
 	listener, err := server.Listen("tcp", tsAddr)
 	if err != nil {
-		log.Printf("ts listener: %v\n", err)
+		log.Printf("ts listener: %v", err)
 		return
 	}
 	defer listener.Close()
@@ -104,7 +111,7 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Getting local client...")
 	client, err := server.LocalClient()
 	if err != nil {
-		log.Printf("ts client: %v\n", err)
+		log.Printf("ts client: %v", err)
 		return
 	}
 
@@ -116,21 +123,34 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	go func() {
+		log.Println("Starting ping...")
+
+		for {
+			time.Sleep(3 * time.Second)
+
+			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				log.Printf("ping err: %v", err)
+				return
+			}
+		}
+	}()
+
 	log.Println("Polling status...")
 	if err := pollStatus(r, server, client, conn); err != nil {
-		log.Printf("poll status: %v\n", err)
+		log.Printf("poll status: %v", err)
 		return
 	}
 
 	peerInfos, err := getPeerConnInfo(r, client)
 	if err != nil {
-		log.Printf("peer info: %v\n", err)
+		log.Printf("peer info: %v", err)
 		return
 	}
 
 	infoBytes, err := json.Marshal(peerInfos)
 	if err != nil {
-		log.Printf("peer marshal: %v\n", err)
+		log.Printf("peer marshal: %v", err)
 		return
 	}
 
@@ -140,34 +160,34 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := conn.WriteJSON(wsMsg); err != nil {
-		log.Printf("ws write peers: %v\n", err)
+		log.Printf("ws write peers: %v", err)
 		return
 	}
 
 	// Await the ssh config info
-	resp, err := awaitConnectionMsg(conn, 0)
-	if err != nil || resp[0] != "ssh-config" {
-		log.Printf("%v conn await %v: %v\n", hostname, resp, err)
+	respMsg, err := hub.AwaitMsg(ws.MessageSshCfg, 0)
+	if err != nil {
+		log.Printf("%v await ssh cfg: %v", hostname, err)
 		return
 	}
 
-	sshCfg := parseSshConfig(resp)
+	sshCfg := parseSshConfig(respMsg.Data)
 
 	go func() {
 		defer conn.Close()
 
 		// Await the ts-websocket-opened message
-		resp, err := awaitConnectionMsg(conn, 30*time.Second)
-		if err != nil || resp[0] != "ts-websocket-opened" {
-			log.Printf("%v conn await %v: %v\n", hostname, resp, err)
+		_, err := hub.AwaitMsg(ws.MessageWsOpened, 30*time.Second)
+		if err != nil {
+			log.Printf("%v websocket await: %v", hostname, err)
 			listener.Close()
 			return
 		}
 
-		log.Printf("%v websocket connected to client.\n", hostname)
+		log.Printf("%v websocket connected to client.", hostname)
 	}()
 
-	log.Printf("Running %v server\n", hostname)
+	log.Printf("Running %v server", hostname)
 
 	err = http.Serve(listener, getTsServerHandler(listener, server, client, sshCfg))
 	log.Printf("%v server closed: %v", hostname, err)
@@ -177,7 +197,7 @@ func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *loc
 	tsUpgrader := createUpgraderTs(client)
 
 	h := func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Received request %v %q\n", server.Hostname, r.URL.Path)
+		log.Printf("Received request %v %q", server.Hostname, r.URL.Path)
 
 		wsConn, err := tsUpgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -261,13 +281,13 @@ func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *loc
 		}
 		// Return if reattempts fail
 		if err != nil {
-			cLog.LessFatalf("ssh conn: %v", err)
+			log.Printf("ssh conn: %v", err)
+			cLog.LessFatalf("ssh failed")
 			return
 		}
 
 		wsMsg = ws.Message{
-			Type: ws.MessageStatus,
-			Data: "ssh-success",
+			Type: ws.MessageSshSuccess,
 		}
 
 		if err = conn.WriteJSON(wsMsg); err != nil {
@@ -335,8 +355,8 @@ func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *loc
 // and returns the parsed response or an error.
 //
 // The connection is closed if a response isn't received before the timeout.
-func awaitConnectionMsg(conn *websocket.Conn, timeout time.Duration) ([]string, error) {
-	var parsed []string
+func awaitConnectionMsg(conn *ws.SyncedWebsocket, timeout time.Duration) (ws.Message, error) {
+	var msg ws.Message
 	var err error
 
 	go func() {
@@ -346,7 +366,7 @@ func awaitConnectionMsg(conn *websocket.Conn, timeout time.Duration) ([]string, 
 
 		time.Sleep(timeout)
 
-		if len(parsed) > 0 || err != nil {
+		if msg != (ws.Message{}) || err != nil {
 			return
 		}
 
@@ -358,24 +378,16 @@ func awaitConnectionMsg(conn *websocket.Conn, timeout time.Duration) ([]string, 
 		conn.WriteMessage(websocket.CloseMessage, wsMsg)
 	}()
 
-	var msg ws.Message
-
 	if err := conn.ReadJSON(&msg); err != nil {
-		return parsed, fmt.Errorf("read err: %w", err)
+		return msg, fmt.Errorf("read err: %w", err)
 	}
 
-	if msg.Type != ws.MessageStatus {
-		return parsed, fmt.Errorf("invalid msg received. [%v] %q", msg.Type, msg.Data)
-	}
-
-	parsed = strings.Split(string(msg.Data), ":")
-
-	switch parsed[0] {
-	case ws.StatusSshCfg, ws.StatusSshHost, ws.StatusWsOpened:
-		return parsed, nil
-	case ws.StatusWsError:
-		return parsed, errors.New("websocket errored")
+	switch msg.Type {
+	case ws.MessageSshCfg, ws.MessageSshHost, ws.MessageWsOpened:
+		return msg, nil
+	case ws.MessageWsError:
+		return msg, errors.New("websocket errored")
 	default:
-		return parsed, fmt.Errorf("invalid msg received. [%v] %q", msg.Type, msg.Data)
+		return msg, fmt.Errorf("invalid msg received. [%v] %q", msg.Type, msg.Data)
 	}
 }

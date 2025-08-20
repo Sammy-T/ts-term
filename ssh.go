@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strings"
 
 	ws "github.com/sammy-t/ts-term/internal/websocket"
 	"golang.org/x/crypto/ssh"
@@ -26,11 +27,11 @@ func getHostKeyCallback(conn *ws.SyncedWebsocket, knownHostsPath string) ssh.Hos
 
 		err = hostKeyCb(hostname, remote, key)
 		if err != nil && errors.As(err, &keyErr) && len(keyErr.Want) == 0 {
-			log.Printf("key unknown: %v\n", keyErr)
+			log.Printf("key unknown: %v", keyErr)
 
 			wsMsg := ws.Message{
-				Type: ws.MessageStatus,
-				Data: fmt.Sprintf("ssh-host:%v", hostname),
+				Type: ws.MessageSshHost,
+				Data: hostname,
 			}
 
 			// Notify the user
@@ -39,18 +40,18 @@ func getHostKeyCallback(conn *ws.SyncedWebsocket, knownHostsPath string) ssh.Hos
 			}
 
 			// Await a response
-			resp, respErr := awaitConnectionMsg(conn.Conn, 0)
-			if respErr != nil || resp[0] != "ssh-host-action" {
-				log.Printf("host await msg: %v\n", respErr)
+			respMsg, respErr := awaitConnectionMsg(conn, 0)
+			if respErr != nil || respMsg.Type != ws.MessageSshHostAct {
+				log.Printf("host await msg: %v", respErr)
 				return errors.New("host await msg error")
 			}
 
-			if resp[1] == "yes" {
+			if respMsg.Data == "yes" {
 				hostLine := knownhosts.Line([]string{hostname}, key)
 
 				file, fileErr := os.OpenFile(knownHostsPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 				if fileErr != nil {
-					log.Printf("file open: %v\n", fileErr)
+					log.Printf("file open: %v", fileErr)
 					return fileErr
 				}
 				defer file.Close()
@@ -78,27 +79,27 @@ func getHostKeyCallback(conn *ws.SyncedWebsocket, knownHostsPath string) ssh.Hos
 func reattemptSSH(r *http.Request, server *tsnet.Server, conn *ws.SyncedWebsocket, config *ssh.ClientConfig) (ssh.Conn, <-chan ssh.NewChannel, <-chan *ssh.Request, error) {
 	var sshErr error
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		log.Println("Reattempting ssh...")
 
 		msg := ws.Message{
-			Type: ws.MessageStatus,
-			Data: "ssh-error",
+			Type: ws.MessageSshErr,
 		}
 
 		if err := conn.WriteJSON(msg); err != nil {
 			return nil, nil, nil, fmt.Errorf("json msg: %w", err)
 		}
 
-		resp, err := awaitConnectionMsg(conn.Conn, 0)
-		if err != nil || resp[0] != "ssh-config" {
+		respMsg, err := awaitConnectionMsg(conn, 0)
+		if err != nil || respMsg.Type != ws.MessageSshCfg {
 			if sshErr != nil {
+				log.Printf("await msg: %v", err)
 				return nil, nil, nil, sshErr
 			}
 			return nil, nil, nil, err
 		}
 
-		sshCfg := parseSshConfig(resp)
+		sshCfg := parseSshConfig(respMsg.Data)
 
 		config.User = sshCfg["username"]
 		config.Auth = []ssh.AuthMethod{
@@ -112,7 +113,7 @@ func reattemptSSH(r *http.Request, server *tsnet.Server, conn *ws.SyncedWebsocke
 
 		sshConn, newChan, reqs, err := ssh.NewClientConn(tsConn, sshCfg["address"], config)
 		if err != nil {
-			log.Printf("ssh reattempt: %v\n", err)
+			log.Printf("ssh reattempt: %v", err)
 			sshErr = err
 			continue
 		}
@@ -123,12 +124,14 @@ func reattemptSSH(r *http.Request, server *tsnet.Server, conn *ws.SyncedWebsocke
 	return nil, nil, nil, errors.New("max ssh attempts reached")
 }
 
-func parseSshConfig(resp []string) map[string]string {
-	// ssh-config:username:password:address:port
+func parseSshConfig(resp string) map[string]string {
+	// username:password:address:port
+	parsed := strings.Split(resp, ":")
+
 	return map[string]string{
-		"username": resp[1],
-		"password": resp[2],
-		"address":  resp[3] + ":" + resp[4],
+		"username": parsed[0],
+		"password": parsed[1],
+		"address":  parsed[2] + ":" + parsed[3],
 	}
 }
 

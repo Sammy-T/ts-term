@@ -144,7 +144,7 @@ func wsToPty(conn *ws.SyncedWebsocket, session *ssh.Session, onClosed func()) {
 		var msg ws.Message
 
 		if err := conn.ReadJSON(&msg); err != nil {
-			log.Printf("Websocket read: %v\n", err)
+			log.Printf("Websocket read: %v", err)
 			return
 		}
 
@@ -155,19 +155,19 @@ func wsToPty(conn *ws.SyncedWebsocket, session *ssh.Session, onClosed func()) {
 				log.Printf("ws write: [%v] %v", n, err)
 			}
 		case ws.MessageSize:
-			log.Printf("size %v\n", msg.Data)
+			log.Printf("size %v", msg.Data)
 
 			var size winSize
 			if err := json.Unmarshal([]byte(msg.Data), &size); err != nil {
-				log.Printf("size: %v\n", err)
+				log.Printf("size: %v", err)
 				break
 			}
 
 			if err := session.WindowChange(size.Rows, size.Cols); err != nil {
-				log.Printf("set size: %v\n", err)
+				log.Printf("set size: %v", err)
 			}
 		default:
-			log.Printf("ws type: %v, data: %q\n", msg.Type, msg.Data)
+			log.Printf("ws type: %v, data: %q", msg.Type, msg.Data)
 		}
 	}
 }

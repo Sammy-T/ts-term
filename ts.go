@@ -37,10 +37,10 @@ func createHostName() string {
 
 // pollStatus polls the status of the TS server until the server is running
 // and outputs relevant status info to the WebSocket.
-func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, conn *websocket.Conn) error {
+func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, conn *ws.SyncedWebsocket) error {
 	var authDelivered bool
 
-	for i := 0; i < 600; i++ {
+	for range 600 {
 		status, err := client.Status(r.Context())
 		if err != nil {
 			return fmt.Errorf("ts status %q: %w", status.BackendState, err)
@@ -125,7 +125,7 @@ func createUpgraderTs(client *local.Client) websocket.Upgrader {
 			origin = strings.Split(parsedOrigin.Host, ":")[0]
 		}
 
-		log.Printf("Check origin\nhost: %q\noriginHdr: %q\norigin: %q\n", host, originHdr, origin)
+		log.Printf("Check origin\nhost: %q\noriginHdr: %q\norigin: %q", host, originHdr, origin)
 
 		return host == origin || slices.Contains(validOriginHosts, origin)
 	}

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	ws "github.com/sammy-t/ts-term/internal/websocket"
 	"golang.org/x/crypto/ssh"
@@ -40,8 +41,8 @@ func getHostKeyCallback(conn *ws.SyncedWebsocket, knownHostsPath string) ssh.Hos
 			}
 
 			// Await a response
-			respMsg, respErr := awaitConnectionMsg(conn, 0)
-			if respErr != nil || respMsg.Type != ws.MessageSshHostAct {
+			respMsg, respErr := ws.AwaitMsg(conn, ws.MessageSshHostAct, 1*time.Minute)
+			if respErr != nil {
 				log.Printf("host await msg: %v", respErr)
 				return errors.New("host await msg error")
 			}
@@ -90,8 +91,8 @@ func reattemptSSH(r *http.Request, server *tsnet.Server, conn *ws.SyncedWebsocke
 			return nil, nil, nil, fmt.Errorf("json msg: %w", err)
 		}
 
-		respMsg, err := awaitConnectionMsg(conn, 0)
-		if err != nil || respMsg.Type != ws.MessageSshCfg {
+		respMsg, err := ws.AwaitMsg(conn, ws.MessageSshCfg, 1*time.Minute)
+		if err != nil {
 			if sshErr != nil {
 				log.Printf("await msg: %v", err)
 				return nil, nil, nil, sshErr

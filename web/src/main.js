@@ -206,6 +206,7 @@ function connectTsWs(url) {
 		console.log(ev);
 
 		dialogProg.close();
+		dialogErr.close();
 
 		const msg = `Tailscale WebSocket closed. ${ev.reason || ''}\r\n`;
 		term.write((isOnNewline) ? msg : `\r\n${msg}`);

@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -349,45 +348,4 @@ func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *loc
 	}
 
 	return http.HandlerFunc(h)
-}
-
-// awaitConnectionMsg awaits the next notification on the provided Websocket connection
-// and returns the parsed response or an error.
-//
-// The connection is closed if a response isn't received before the timeout.
-func awaitConnectionMsg(conn *ws.SyncedWebsocket, timeout time.Duration) (ws.Message, error) {
-	var msg ws.Message
-	var err error
-
-	go func() {
-		if timeout.Milliseconds() == 0 {
-			return
-		}
-
-		time.Sleep(timeout)
-
-		if msg != (ws.Message{}) || err != nil {
-			return
-		}
-
-		msg := "websocket timed out."
-
-		log.Println(msg)
-
-		wsMsg := websocket.FormatCloseMessage(websocket.CloseGoingAway, msg)
-		conn.WriteMessage(websocket.CloseMessage, wsMsg)
-	}()
-
-	if err := conn.ReadJSON(&msg); err != nil {
-		return msg, fmt.Errorf("read err: %w", err)
-	}
-
-	switch msg.Type {
-	case ws.MessageSshCfg, ws.MessageSshHost, ws.MessageWsOpened:
-		return msg, nil
-	case ws.MessageWsError:
-		return msg, errors.New("websocket errored")
-	default:
-		return msg, fmt.Errorf("invalid msg received. [%v] %q", msg.Type, msg.Data)
-	}
 }

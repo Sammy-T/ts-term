@@ -65,8 +65,7 @@ func (h Hub) AwaitMsg(msgType MessageType, timeout time.Duration) (Message, erro
 
 		time.Sleep(timeout)
 
-		if msg != (Message{}) || err != nil {
-			log.Printf("timeout cancelled: non-empty %q [%v]", msg.Type, err) //// TODO: TEMP
+		if msg.Type == msgType || err != nil {
 			return
 		}
 

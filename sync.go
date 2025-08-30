@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"sync"
 	"time"
 
 	ws "github.com/sammy-t/ts-term/internal/websocket"
@@ -22,7 +23,7 @@ const ioDelay time.Duration = 10 * time.Millisecond
 //
 // NOTE: The WebSocket and PTY are closed when the PTY
 // errors or closes.
-func ptyErrToWs(session *ssh.Session, conn *ws.SyncedWebsocket, onClosed func()) {
+func ptyErrToWs(mu *sync.Mutex, session *ssh.Session, conn *ws.SyncedWebsocket, onClosed func()) {
 	log.Println("Reading pty err...")
 
 	defer func() {
@@ -36,7 +37,9 @@ func ptyErrToWs(session *ssh.Session, conn *ws.SyncedWebsocket, onClosed func())
 
 	b := make([]byte, bufferSize)
 
+	mu.Lock()
 	errPipe, err := session.StderrPipe()
+	mu.Unlock()
 	if err != nil {
 		log.Printf("sess err: %v", err)
 		return
@@ -72,7 +75,7 @@ func ptyErrToWs(session *ssh.Session, conn *ws.SyncedWebsocket, onClosed func())
 //
 // NOTE: The WebSocket and PTY are closed when the PTY
 // errors or closes.
-func ptyToWs(session *ssh.Session, conn *ws.SyncedWebsocket, onClosed func()) {
+func ptyToWs(mu *sync.Mutex, session *ssh.Session, conn *ws.SyncedWebsocket, onClosed func()) {
 	log.Println("Reading pty...")
 
 	defer func() {
@@ -86,7 +89,9 @@ func ptyToWs(session *ssh.Session, conn *ws.SyncedWebsocket, onClosed func()) {
 
 	b := make([]byte, bufferSize)
 
+	mu.Lock()
 	outPipe, err := session.StdoutPipe()
+	mu.Unlock()
 	if err != nil {
 		log.Printf("sess out: %v", err)
 		return
@@ -122,7 +127,7 @@ func ptyToWs(session *ssh.Session, conn *ws.SyncedWebsocket, onClosed func()) {
 //
 // NOTE: The WebSocket and PTY are closed when the Websocket
 // connection errors or closes.
-func wsToPty(conn *ws.SyncedWebsocket, session *ssh.Session, onClosed func()) {
+func wsToPty(mu *sync.Mutex, session *ssh.Session, conn *ws.SyncedWebsocket, onClosed func()) {
 	log.Println("Reading websocket...")
 
 	defer func() {
@@ -134,7 +139,9 @@ func wsToPty(conn *ws.SyncedWebsocket, session *ssh.Session, onClosed func()) {
 		}
 	}()
 
+	mu.Lock()
 	inPipe, err := session.StdinPipe()
+	mu.Unlock()
 	if err != nil {
 		log.Printf("sess in: %v", err)
 		return

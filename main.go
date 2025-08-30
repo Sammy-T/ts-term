@@ -321,9 +321,12 @@ func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *loc
 			listener.Close()
 		}
 
-		go ptyErrToWs(session, conn, onClosed)
-		go ptyToWs(session, conn, onClosed)
-		go wsToPty(conn, session, onClosed)
+		// Use a mutex to sync interaction with the SSH session pipes
+		sessMu := &sync.Mutex{}
+
+		go ptyErrToWs(sessMu, session, conn, onClosed)
+		go ptyToWs(sessMu, session, conn, onClosed)
+		go wsToPty(sessMu, session, conn, onClosed)
 
 		if err = session.Shell(); err != nil {
 			cLog.LessFatalf("shell: %v", err)

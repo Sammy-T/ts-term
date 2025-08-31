@@ -20,9 +20,6 @@ type winSize struct {
 const ioDelay time.Duration = 10 * time.Millisecond
 
 // ptyToWs reads PTY error output and writes it to the WebSocket.
-//
-// NOTE: The WebSocket and PTY are closed when the PTY
-// errors or closes.
 func ptyErrToWs(errPipe io.Reader, conn *ws.SyncedWebsocket, onClosed func()) {
 	log.Println("Reading pty err...")
 
@@ -61,9 +58,6 @@ func ptyErrToWs(errPipe io.Reader, conn *ws.SyncedWebsocket, onClosed func()) {
 }
 
 // ptyToWs reads PTY output and writes it to the WebSocket.
-//
-// NOTE: The WebSocket and PTY are closed when the PTY
-// errors or closes.
 func ptyToWs(outPipe io.Reader, conn *ws.SyncedWebsocket, onClosed func()) {
 	log.Println("Reading pty...")
 
@@ -102,9 +96,6 @@ func ptyToWs(outPipe io.Reader, conn *ws.SyncedWebsocket, onClosed func()) {
 }
 
 // wsToPty reads WebSocket input and writes it to the PTY.
-//
-// NOTE: The WebSocket and PTY are closed when the Websocket
-// connection errors or closes.
 func wsToPty(inPipe io.WriteCloser, session *ssh.Session, conn *ws.SyncedWebsocket, onClosed func()) {
 	log.Println("Reading websocket...")
 

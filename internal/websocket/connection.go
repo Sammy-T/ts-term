@@ -5,7 +5,22 @@ import (
 	"fmt"
 	"log"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
+
+func PingConn(conn *SyncedWebsocket, interval time.Duration) {
+	go func() {
+		for {
+			time.Sleep(interval)
+
+			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				log.Printf("ping err: %v", err)
+				return
+			}
+		}
+	}()
+}
 
 func AwaitMsg(conn *SyncedWebsocket, msgType MessageType, timeout time.Duration) (Message, error) {
 	ch := make(chan int)

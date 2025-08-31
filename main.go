@@ -122,18 +122,8 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	go func() {
-		log.Println("Starting ping...")
-
-		for {
-			time.Sleep(3 * time.Second)
-
-			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				log.Printf("ping err: %v", err)
-				return
-			}
-		}
-	}()
+	log.Println("Starting ping...")
+	ws.PingConn(conn, 3*time.Second)
 
 	log.Println("Polling status...")
 	if err := pollStatus(r, server, client, conn); err != nil {
@@ -141,6 +131,7 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println("Getting peer conn info...")
 	peerInfos, err := getPeerConnInfo(r, client)
 	if err != nil {
 		log.Printf("peer info: %v", err)
@@ -158,11 +149,13 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 		Data: string(infoBytes),
 	}
 
+	log.Println("Sending peer info...")
 	if err := conn.WriteJSON(wsMsg); err != nil {
 		log.Printf("ws write peers: %v", err)
 		return
 	}
 
+	log.Println("Awaiting ssh config...")
 	// Await the ssh config info
 	respMsg, err := hub.AwaitMsg(ws.MessageSshCfg, 0)
 	if err != nil {
@@ -172,6 +165,7 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 
 	sshCfg := parseSshConfig(respMsg.Data)
 
+	log.Println("Awaiting ts websocket opened msg...")
 	go func() {
 		defer conn.Close()
 
@@ -318,15 +312,32 @@ func getTsServerHandler(listener net.Listener, server *tsnet.Server, client *loc
 		}
 
 		onClosed := func() {
+			conn.Close()
+			session.Close()
 			listener.Close()
 		}
 
-		// Use a mutex to sync interaction with the SSH session pipes
-		sessMu := &sync.Mutex{}
+		errPipe, err := session.StderrPipe()
+		if err != nil {
+			log.Printf("sess err: %v", err)
+			return
+		}
 
-		go ptyErrToWs(sessMu, session, conn, onClosed)
-		go ptyToWs(sessMu, session, conn, onClosed)
-		go wsToPty(sessMu, session, conn, onClosed)
+		outPipe, err := session.StdoutPipe()
+		if err != nil {
+			log.Printf("sess out: %v", err)
+			return
+		}
+
+		inPipe, err := session.StdinPipe()
+		if err != nil {
+			log.Printf("sess in: %v", err)
+			return
+		}
+
+		go ptyErrToWs(errPipe, conn, onClosed)
+		go ptyToWs(outPipe, conn, onClosed)
+		go wsToPty(inPipe, session, conn, onClosed)
 
 		if err = session.Shell(); err != nil {
 			cLog.LessFatalf("shell: %v", err)

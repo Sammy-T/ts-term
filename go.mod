@@ -1,13 +1,13 @@
 module github.com/sammy-t/ts-term
 
-go 1.25
+go 1.25.1
 
 require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/joho/godotenv v1.5.1
 	golang.org/x/crypto v0.42.0
-	tailscale.com v1.86.5
+	tailscale.com v1.88.3
 )
 
 require (

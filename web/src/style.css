@@ -26,13 +26,6 @@ html, body {
 	overflow: hidden;
 }
 
-body {
-	background: #031e33;
-	background: linear-gradient(142deg, rgba(3, 30, 51, 1) 12%, rgba(9, 91, 121, 1) 52%, rgba(77, 0, 26, 1) 94%);
-	display: flex;
-	justify-content: center;
-}
-
 h1 {
 	margin: 0;
 	margin-bottom: 0.25rem;
@@ -103,20 +96,32 @@ dialog::backdrop {
 	backdrop-filter: blur(5px);
 }
 
+body {
+	background: #031e33;
+	background: linear-gradient(142deg, rgba(3, 30, 51, 1) 12%, rgba(9, 91, 121, 1) 52%, rgba(77, 0, 26, 1) 94%);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
 main {
-	flex-grow: 1;
-	height: 100%;
-	max-width: 1024px;
+	/* max-width: 1024px; */
 	margin: 0;
 	padding: 0.5rem;
-	display: flex;
-	flex-direction: column;
+	display: grid;
+	grid-template-rows: repeat(3, min-content);
 	justify-content: center;
+	align-items: center;
 }
 
 #xterm-container {
-	flex-grow: 1;
-	max-height: 50dvh;
+	min-width: 25dvw;
+	width: 80dvw;
+	max-width: 95dvw;
+	min-height: 10dvh;
+	height: 50dvh;
+	max-height: 80dvh;
+	resize: both;
 	margin-bottom: 0.25rem;
 	border-radius: 0.35rem;
 	overflow: hidden;
@@ -178,5 +183,11 @@ form#config {
 #diag-err {
 	& > p {
 		text-align: center;
+	}
+}
+
+@media (min-width: 1450px) {
+	#xterm-container {
+		width: 50dvw;
 	}
 }

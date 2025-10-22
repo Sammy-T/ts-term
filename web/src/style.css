@@ -36,6 +36,10 @@ form {
 	& input {
 		min-height: 1.5rem;
 	}
+
+	& input[type="checkbox"] {
+		vertical-align: middle;
+	}
 }
 
 dialog {

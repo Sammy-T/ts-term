@@ -120,10 +120,10 @@ main {
 
 #xterm-container {
 	min-width: 25dvw;
-	width: 80dvw;
-	max-width: 95dvw;
+	width: 95dvw;
+	max-width: 97dvw;
 	min-height: 10dvh;
-	height: 50dvh;
+	height: 60dvh;
 	max-height: 80dvh;
 	resize: both;
 	margin-bottom: 0.25rem;

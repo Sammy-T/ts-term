@@ -7,7 +7,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/joho/godotenv v1.5.1
 	golang.org/x/crypto v0.45.0
-	tailscale.com v1.90.8
+	tailscale.com v1.92.0
 )
 
 require (
@@ -19,6 +19,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.64.4 // indirect
 	github.com/coder/websocket v1.8.14 // indirect
 	github.com/coreos/go-iptables v0.8.0 // indirect
+	github.com/creachadair/msync v0.7.1 // indirect
 	github.com/creack/pty v1.1.24 // indirect
 	github.com/dblohm7/wingoes v0.0.0-20250822163801-6d8e6105c62d // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
@@ -36,6 +37,7 @@ require (
 	github.com/mdlayher/socket v0.5.1 // indirect
 	github.com/miekg/dns v1.1.68 // indirect
 	github.com/mitchellh/go-ps v1.0.0 // indirect
+	github.com/pires/go-proxyproto v0.8.1 // indirect
 	github.com/prometheus-community/pro-bing v0.7.0 // indirect
 	github.com/safchain/ethtool v0.7.0 // indirect
 	github.com/tailscale/certstore v0.1.1-0.20231202035212-d3fa0460f47e // indirect

@@ -134,10 +134,11 @@ main {
 
 .xterm {
 	padding: 0.5rem;
-}
+	padding-right: 0;
 
-.xterm-viewport {
-	scrollbar-width: thin;
+	& .xterm-viewport {
+		overflow: hidden;
+	}
 }
 
 footer {

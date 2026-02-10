@@ -12,7 +12,16 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 const term = new Terminal();
 const fitAddon = new FitAddon();
 
+/** @type {HTMLDivElement} */
 const termContainer = document.querySelector('#xterm-container');
+
+/** @type {HTMLElement} */
+const termView = document.querySelector('#term-view');
+
+/** @type {HTMLInputElement} */
+const slider = termView.querySelector('input[type="range"]');
+
+/** @type {HTMLAnchorElement} */
 const ghAnchor = document.querySelector('#gh');
 
 /** @type {HTMLDialogElement} */
@@ -399,6 +408,38 @@ const rsObserver = new ResizeObserver(() => {
 rsObserver.observe(termContainer);
 
 term.write('Welcome to \x1B[1;3;32mts-term\x1B[0m \r\n');
+
+term.onLineFeed(() => {
+	const thumbHeight = Math.round(term.rows / term.buffer.active.length * 100);
+	console.log(term.buffer.active.length, 'tHgt', thumbHeight);
+
+	termView.style.setProperty('--slider-thumb-height', `clamp(2rem, ${thumbHeight}%, 100%)`);
+
+	// slider.max = term.buffer.active.length;
+});
+
+term.onScroll((n) => {
+	const pos = n / (term.buffer.active.length - term.rows) * 100;
+	console.log('scroll', `${n}/${term.buffer.active.length}`, pos);
+
+	slider.value = pos;
+});
+
+//// TODO: TEMP
+async function temp() {
+	function timeout(delay) {
+		return new Promise((resolve, reject) => {
+			setTimeout(() => resolve(), delay);
+		});
+	}
+
+	for(let i=0; i < 1000; i++) {
+		term.write(`${i} \r\n`);
+		await timeout(5);
+	}
+}
+temp();
+////
 
 initDialogs();
 connectInitWs();

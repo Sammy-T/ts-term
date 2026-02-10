@@ -411,35 +411,31 @@ term.write('Welcome to \x1B[1;3;32mts-term\x1B[0m \r\n');
 
 term.onLineFeed(() => {
 	const thumbHeight = Math.round(term.rows / term.buffer.active.length * 100);
-	console.log(term.buffer.active.length, 'tHgt', thumbHeight);
 
 	termView.style.setProperty('--slider-thumb-height', `clamp(2rem, ${thumbHeight}%, 100%)`);
-
-	// slider.max = term.buffer.active.length;
+	slider.max = term.buffer.active.length;
 });
 
-term.onScroll((n) => {
-	const pos = n / (term.buffer.active.length - term.rows) * 100;
-	console.log('scroll', `${n}/${term.buffer.active.length}`, pos);
+/** @type {Number} */
+let inputTid;
+let isDragging = false;
 
+term.onScroll((n) => {
+	if(isDragging) return;
+
+	const pos = n / (term.buffer.active.length - term.rows) * term.buffer.active.length;
 	slider.value = pos;
 });
 
-//// TODO: TEMP
-async function temp() {
-	function timeout(delay) {
-		return new Promise((resolve, reject) => {
-			setTimeout(() => resolve(), delay);
-		});
-	}
+slider.addEventListener('input', () => {
+	clearTimeout(inputTid);
+	inputTid = setTimeout(() => isDragging = false, 50);
 
-	for(let i=0; i < 1000; i++) {
-		term.write(`${i} \r\n`);
-		await timeout(5);
-	}
-}
-temp();
-////
+	isDragging = true;
+
+	const pos = slider.value;
+	term.scrollToLine(pos);
+});
 
 initDialogs();
 connectInitWs();

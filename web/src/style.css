@@ -118,6 +118,11 @@ main {
 	align-items: center;
 }
 
+#term-view {
+	display: flex;
+	flex-direction: row;
+}
+
 #xterm-container {
 	min-width: 25dvw;
 	width: 95dvw;
@@ -139,6 +144,11 @@ main {
 	& .xterm-viewport {
 		overflow: hidden;
 	}
+}
+
+.vertical-slider {
+	writing-mode: vertical-rl;
+	direction: ltr;
 }
 
 footer {

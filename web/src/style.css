@@ -116,11 +116,30 @@ main {
 	grid-template-rows: repeat(3, min-content);
 	justify-content: center;
 	align-items: center;
+
+	& > header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	& button {
+		padding: 0.25rem;
+		border: none;
+		border-radius: 0.15rem;
+		background-color: #5c81a286;
+		color: white;
+	}
+
+	& button:hover {
+		background-color: #233f56bd;
+	}
 }
 
 #term-view {
 	display: flex;
 	flex-direction: row;
+	gap: 0.15rem;
 	--slider-thumb-height: 2rem;
 	--slider-thumb-width: 1rem;
 	--slider-thumb-radius: 0.25rem;

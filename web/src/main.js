@@ -1,4 +1,6 @@
 import ghLogo from './brand-github.svg?raw';
+import icSideClosed from './layout-sidebar-right-collapse.svg?raw';
+import icSideOpened from './layout-sidebar-right-collapse-2.svg?raw';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
@@ -11,6 +13,9 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 
 const term = new Terminal();
 const fitAddon = new FitAddon();
+
+/** @type {HTMLButtonElement} */
+const toggleScroll = document.querySelector('#toggle-scroll');
 
 /** @type {HTMLDivElement} */
 const termContainer = document.querySelector('#xterm-container');
@@ -382,6 +387,22 @@ function initDialogs() {
 		dialogConn.showModal();
 	});
 }
+
+function updateToggleScroll() {
+	const icon = (scrollVisible) ? icSideOpened : icSideClosed;
+	toggleScroll.innerHTML = icon;
+
+	slider.style.display = (scrollVisible) ? '' : 'none';
+}
+
+let scrollVisible = false;
+
+toggleScroll.addEventListener('click', () => {
+	scrollVisible = !scrollVisible;
+	updateToggleScroll();
+});
+
+updateToggleScroll();
 
 // Add the GH logo into the footer link
 ghAnchor.innerHTML = `${ghLogo} ${ghAnchor.innerHTML}`;

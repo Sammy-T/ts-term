@@ -117,12 +117,6 @@ main {
 	justify-content: center;
 	align-items: center;
 
-	& > header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-	}
-
 	& button {
 		padding: 0.25rem;
 		border: none;
@@ -133,6 +127,16 @@ main {
 
 	& button:hover {
 		background-color: #233f56bd;
+	}
+
+	& > header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+
+		& button {
+			background-color: transparent;
+		}
 	}
 }
 

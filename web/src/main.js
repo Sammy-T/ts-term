@@ -1,4 +1,6 @@
 import ghLogo from './brand-github.svg?raw';
+import icSideClosed from './layout-sidebar-right-collapse.svg?raw';
+import icSideOpened from './layout-sidebar-right-collapse-2.svg?raw';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
@@ -12,7 +14,19 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 const term = new Terminal();
 const fitAddon = new FitAddon();
 
+/** @type {HTMLButtonElement} */
+const toggleScroll = document.querySelector('#toggle-scroll');
+
+/** @type {HTMLDivElement} */
 const termContainer = document.querySelector('#xterm-container');
+
+/** @type {HTMLElement} */
+const termView = document.querySelector('#term-view');
+
+/** @type {HTMLInputElement} */
+const slider = termView.querySelector('input[type="range"]');
+
+/** @type {HTMLAnchorElement} */
 const ghAnchor = document.querySelector('#gh');
 
 /** @type {HTMLDialogElement} */
@@ -374,6 +388,22 @@ function initDialogs() {
 	});
 }
 
+function updateToggleScroll() {
+	const icon = (scrollVisible) ? icSideOpened : icSideClosed;
+	toggleScroll.innerHTML = icon;
+
+	slider.style.display = (scrollVisible) ? '' : 'none';
+}
+
+let scrollVisible = false;
+
+toggleScroll.addEventListener('click', () => {
+	scrollVisible = !scrollVisible;
+	updateToggleScroll();
+});
+
+updateToggleScroll();
+
 // Add the GH logo into the footer link
 ghAnchor.innerHTML = `${ghLogo} ${ghAnchor.innerHTML}`;
 
@@ -399,6 +429,34 @@ const rsObserver = new ResizeObserver(() => {
 rsObserver.observe(termContainer);
 
 term.write('Welcome to \x1B[1;3;32mts-term\x1B[0m \r\n');
+
+term.onLineFeed(() => {
+	const thumbHeight = Math.round(term.rows / term.buffer.active.length * 100);
+
+	termView.style.setProperty('--slider-thumb-height', `clamp(2rem, ${thumbHeight}%, 100%)`);
+	slider.max = term.buffer.active.length;
+});
+
+/** @type {Number} */
+let inputTid;
+let isDragging = false;
+
+term.onScroll((n) => {
+	if(isDragging) return;
+
+	const pos = n / (term.buffer.active.length - term.rows) * term.buffer.active.length;
+	slider.value = pos;
+});
+
+slider.addEventListener('input', () => {
+	clearTimeout(inputTid);
+	inputTid = setTimeout(() => isDragging = false, 50);
+
+	isDragging = true;
+
+	const pos = slider.value;
+	term.scrollToLine(pos);
+});
 
 initDialogs();
 connectInitWs();

@@ -1,4 +1,5 @@
 import ghLogo from './brand-github.svg?raw';
+import icSettings from './settings.svg?raw';
 import icSideClosed from './layout-sidebar-right-collapse.svg?raw';
 import icSideOpened from './layout-sidebar-right-collapse-2.svg?raw';
 import { Terminal } from '@xterm/xterm';
@@ -15,10 +16,15 @@ const term = new Terminal();
 const fitAddon = new FitAddon();
 
 /** @type {HTMLButtonElement} */
+const toggleSettings = document.querySelector('#toggle-opts');
+
+/** @type {HTMLButtonElement} */
 const toggleScroll = document.querySelector('#toggle-scroll');
 
 /** @type {HTMLDivElement} */
 const termContainer = document.querySelector('#xterm-container');
+
+const termScreen = termContainer.querySelector('.xterm-screen');
 
 /** @type {HTMLElement} */
 const termView = document.querySelector('#term-view');
@@ -28,6 +34,15 @@ const slider = termView.querySelector('input[type="range"]');
 
 /** @type {HTMLAnchorElement} */
 const ghAnchor = document.querySelector('#gh');
+
+/** @type {HTMLElement} */
+const options = document.querySelector('#options');
+
+/** @type {HTMLInputElement} */
+const inputFontSize = document.querySelector('#font-size');
+
+/** @type {HTMLInputElement} */
+const inputFontRange = document.querySelector('#font-range');
 
 /** @type {HTMLDialogElement} */
 const dialogConn = document.querySelector('#diag-conn');
@@ -52,6 +67,8 @@ const machineSelect = settingsForm.querySelector('select[name="machine"]');
 
 /** @type {HTMLSelectElement} */
 const typeSelect = settingsForm.querySelector('select[name="address-type"]');
+
+let scrollVisible = false;
 
 /** @type {WebSocket} */
 let initWs;
@@ -388,21 +405,56 @@ function initDialogs() {
 	});
 }
 
+function initMenu() {
+	let optsVisible = false;
+
+	toggleSettings.innerHTML = icSettings;
+	options.style.display = (optsVisible) ? '' : 'none';
+
+	updateToggleScroll();
+
+	toggleSettings.addEventListener('click', () => {
+		optsVisible = !optsVisible;
+		options.style.display = (optsVisible) ? '' : 'none';
+	});
+
+	toggleScroll.addEventListener('click', () => {
+		scrollVisible = !scrollVisible;
+		updateToggleScroll();
+	});
+}
+
+function initOptions() {
+	const { fontSize } = term.options;
+
+	inputFontSize.value = fontSize;
+	inputFontRange.value = fontSize;
+
+	inputFontSize.addEventListener('input', () => {
+		const size = inputFontSize.value;
+
+		inputFontRange.value = size;
+		term.options.fontSize = size;
+		
+		fitAddon.fit();
+	});
+
+	inputFontRange.addEventListener('input', () => {
+		const size = inputFontRange.value;
+
+		inputFontSize.value = size;
+		term.options.fontSize = size;
+
+		fitAddon.fit();
+	});
+}
+
 function updateToggleScroll() {
 	const icon = (scrollVisible) ? icSideOpened : icSideClosed;
 	toggleScroll.innerHTML = icon;
 
 	slider.style.display = (scrollVisible) ? '' : 'none';
 }
-
-let scrollVisible = false;
-
-toggleScroll.addEventListener('click', () => {
-	scrollVisible = !scrollVisible;
-	updateToggleScroll();
-});
-
-updateToggleScroll();
 
 // Add the GH logo into the footer link
 ghAnchor.innerHTML = `${ghLogo} ${ghAnchor.innerHTML}`;
@@ -411,8 +463,6 @@ term.loadAddon(fitAddon);
 term.loadAddon(new WebLinksAddon());
 term.open(termContainer);
 fitAddon.fit();
-
-const termScreen = termContainer.querySelector('.xterm-screen');
 
 /** @type {Number} */
 let tid;
@@ -458,5 +508,7 @@ slider.addEventListener('input', () => {
 	term.scrollToLine(pos);
 });
 
+initMenu();
+initOptions();
 initDialogs();
 connectInitWs();

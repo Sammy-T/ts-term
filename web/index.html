@@ -16,7 +16,10 @@
 		<header>
 			<h1>ts-term</h1>
 
-			<button id="toggle-scroll">scrollbar</button>
+			<div class="menu">
+				<button id="toggle-opts">options</button>
+				<button id="toggle-scroll">scrollbar</button>
+			</div>
 		</header>
 
 		<section id="term-view">
@@ -27,6 +30,14 @@
 		<footer>
 			<a id="gh" href="https://github.com/Sammy-T/ts-term" target="_blank">GitHub</a>
 		</footer>
+
+		<section id="options">
+			<fieldset>
+				<label for="font-size">Font size</label>
+				<input id="font-size" type="number" min="5" max="30" />
+				<input id="font-range" type="range" min="5" max="30" />
+			</fieldset>
+		</section>
 
 		<!-- Connection dialog -->
 		<dialog id="diag-conn" closedBy="none">

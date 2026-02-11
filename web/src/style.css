@@ -28,7 +28,6 @@ html, body {
 
 h1 {
 	margin: 0;
-	margin-bottom: 0.25rem;
 	opacity: 0.7;
 }
 
@@ -140,6 +139,11 @@ main {
 	}
 }
 
+.menu {
+	display: flex;
+	align-items: center;
+}
+
 #term-view {
 	display: flex;
 	flex-direction: row;
@@ -212,6 +216,8 @@ main {
 }
 
 footer {
+	margin-bottom: 0.5rem;
+
 	& a {
 		text-decoration: none;
 		color: white;
@@ -224,6 +230,24 @@ footer {
 
 	& a:hover {
 		opacity: 0.85;
+	}
+}
+
+#options {
+	display: flex;
+
+	& label {
+		padding-right: 0.75rem;
+	}
+
+	& fieldset {
+		margin: 0;
+		padding: 0.5rem 0.75rem;
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		border: 1px solid rgba(255, 255, 255, 0.25);
+		border-radius: 0.5rem;
 	}
 }
 

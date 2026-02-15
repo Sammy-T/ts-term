@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -94,13 +93,18 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer server.Close()
 
-	tsAddr := ":80"
-	if strings.HasPrefix(r.Header["Origin"][0], "https:") {
-		tsAddr = ":443"
-	}
+	var listener net.Listener
 
 	log.Printf("Creating tsnet server %q...", hostname)
-	listener, err := server.Listen("tcp", tsAddr)
+
+	if strings.HasPrefix(r.Header["Origin"][0], "https:") {
+		log.Println("Enabling tsnet TLS. HTTPS Certificates must be enabled in the admin panel for this to work.")
+
+		listener, err = server.ListenTLS("tcp", ":443")
+	} else {
+		listener, err = server.Listen("tcp", ":80")
+	}
+
 	if err != nil {
 		log.Printf("ts listener: %v", err)
 		return
@@ -112,14 +116,6 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("ts client: %v", err)
 		return
-	}
-
-	if tsAddr == ":443" {
-		log.Println("Enabling tsnet TLS. HTTPS Certificates must be enabled in the admin panel for this to work.")
-
-		listener = tls.NewListener(listener, &tls.Config{
-			GetCertificate: client.GetCertificate,
-		})
 	}
 
 	log.Println("Starting ping...")

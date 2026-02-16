@@ -37,51 +37,58 @@ func createHostName() string {
 
 // pollStatus polls the status of the TS server until the server is running
 // and outputs relevant status info to the WebSocket.
-func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, conn *ws.SyncedWebsocket) error {
+func pollStatus(r *http.Request, server *tsnet.Server, client *local.Client, hub *ws.Hub) error {
+	conn := hub.Conn
+
 	var authDelivered bool
 
 	for range 600 {
-		status, err := client.Status(r.Context())
-		if err != nil {
-			return fmt.Errorf("ts status %q: %w", status.BackendState, err)
+		select {
+		case <-hub.Closed:
+			return fmt.Errorf("hub closed")
+		default:
+			status, err := client.Status(r.Context())
+			if err != nil {
+				return fmt.Errorf("ts status %q: %w", status.BackendState, err)
+			}
+
+			switch status.BackendState {
+			case "NeedsLogin":
+				if authDelivered || status.AuthURL == "" {
+					break
+				}
+
+				wsMsg := ws.Message{
+					Type: ws.MessageInfo,
+					Data: fmt.Sprintf("Auth required. Go to: %v", status.AuthURL),
+				}
+
+				if err = conn.WriteJSON(wsMsg); err != nil {
+					return fmt.Errorf("ws write status %q: %w", status.BackendState, err)
+				}
+
+				authDelivered = true
+			case "Running":
+				tsIp4, tsIp6 := server.TailscaleIPs()
+				hostname := status.Self.HostName
+
+				msg := fmt.Sprintf("Tailscale machine %v at %v %v", hostname, tsIp4, tsIp6)
+
+				wsMsg := ws.Message{
+					Type: ws.MessageInfo,
+					Data: msg,
+				}
+
+				if err = conn.WriteJSON(wsMsg); err != nil {
+					return fmt.Errorf("ws write status %q: %w", status.BackendState, err)
+				}
+				log.Println(msg)
+
+				return nil
+			}
+
+			time.Sleep(1 * time.Second)
 		}
-
-		switch status.BackendState {
-		case "NeedsLogin":
-			if authDelivered || status.AuthURL == "" {
-				break
-			}
-
-			wsMsg := ws.Message{
-				Type: ws.MessageInfo,
-				Data: fmt.Sprintf("Auth required. Go to: %v", status.AuthURL),
-			}
-
-			if err = conn.WriteJSON(wsMsg); err != nil {
-				return fmt.Errorf("ws write status %q: %w", status.BackendState, err)
-			}
-
-			authDelivered = true
-		case "Running":
-			tsIp4, tsIp6 := server.TailscaleIPs()
-			hostname := status.Self.HostName
-
-			msg := fmt.Sprintf("Tailscale machine %v at %v %v", hostname, tsIp4, tsIp6)
-
-			wsMsg := ws.Message{
-				Type: ws.MessageInfo,
-				Data: msg,
-			}
-
-			if err = conn.WriteJSON(wsMsg); err != nil {
-				return fmt.Errorf("ws write status %q: %w", status.BackendState, err)
-			}
-			log.Println(msg)
-
-			return nil
-		}
-
-		time.Sleep(1 * time.Second)
 	}
 
 	msg := fmt.Sprintf("%v init timed out.", server.Hostname)

@@ -11,6 +11,7 @@ import (
 
 type Hub struct {
 	Conn      *SyncedWebsocket
+	Closed    chan int
 	listeners map[MessageType][]chan msgResp
 	mu        *sync.Mutex
 }
@@ -23,6 +24,7 @@ type msgResp struct {
 func NewHub(conn *SyncedWebsocket) Hub {
 	h := Hub{
 		Conn:      conn,
+		Closed:    make(chan int),
 		listeners: make(map[MessageType][]chan msgResp),
 		mu:        &sync.Mutex{},
 	}
@@ -33,6 +35,10 @@ func NewHub(conn *SyncedWebsocket) Hub {
 }
 
 func (h Hub) listen() {
+	defer func() {
+		h.Closed <- 0
+	}()
+
 	readLimit := 60 * time.Second
 
 	h.Conn.SetReadDeadline(time.Now().Add(readLimit))
@@ -57,6 +63,7 @@ func (h Hub) AwaitMsg(msgType MessageType, timeout time.Duration) (Message, erro
 	var err error
 
 	ch := h.registerListener(msgType)
+	defer h.unregisterListener(msgType, ch)
 
 	go func() {
 		if timeout.Milliseconds() == 0 {
@@ -76,8 +83,6 @@ func (h Hub) AwaitMsg(msgType MessageType, timeout time.Duration) (Message, erro
 
 	msg = mResp.msg
 	err = mResp.err
-
-	h.unregisterListener(msgType, ch)
 
 	return msg, err
 }

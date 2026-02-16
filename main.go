@@ -38,8 +38,10 @@ func init() {
 }
 
 func main() {
-	http.Handle("/", getWebHandler())
-	http.HandleFunc("/ts", tsHandler)
+	mux := http.NewServeMux()
+
+	mux.Handle("/", getWebHandler())
+	mux.HandleFunc("/ts", tsHandler)
 
 	addr := os.Getenv("TS_TERM_ADDR")
 	if addr == "" {
@@ -47,7 +49,7 @@ func main() {
 	}
 
 	log.Printf("Serving ts-term on %v", addr)
-	log.Fatal(http.ListenAndServe(addr, nil))
+	log.Fatal(http.ListenAndServe(addr, mux))
 }
 
 func getWebHandler() http.Handler {

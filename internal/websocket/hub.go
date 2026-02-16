@@ -35,9 +35,7 @@ func NewHub(conn *SyncedWebsocket) Hub {
 }
 
 func (h Hub) listen() {
-	defer func() {
-		h.Closed <- 0
-	}()
+	defer func() { h.Closed <- 0 }()
 
 	readLimit := 60 * time.Second
 

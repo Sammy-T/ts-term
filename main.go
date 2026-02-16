@@ -153,7 +153,7 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("Awaiting ssh config...")
 	// Await the ssh config info
-	respMsg, err := hub.AwaitMsg(ws.MessageSshCfg, 0)
+	respMsg, err := hub.AwaitMsg(ws.MessageSshCfg, 10*time.Minute)
 	if err != nil {
 		log.Printf("%v await ssh cfg: %v", hostname, err)
 		return

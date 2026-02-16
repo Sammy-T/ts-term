@@ -35,9 +35,7 @@ func NewHub(conn *SyncedWebsocket) Hub {
 }
 
 func (h Hub) listen() {
-	defer func() {
-		h.Closed <- 0
-	}()
+	defer func() { h.Closed <- 0 }()
 
 	readLimit := 60 * time.Second
 
@@ -79,10 +77,13 @@ func (h Hub) AwaitMsg(msgType MessageType, timeout time.Duration) (Message, erro
 		ch <- msgResp{err: fmt.Errorf("await msg %q timed out", msgType)}
 	}()
 
-	mResp := <-ch
-
-	msg = mResp.msg
-	err = mResp.err
+	select {
+	case <-h.Closed:
+		err = fmt.Errorf("hub closed")
+	case mResp := <-ch:
+		msg = mResp.msg
+		err = mResp.err
+	}
 
 	return msg, err
 }

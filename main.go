@@ -43,13 +43,56 @@ func main() {
 	mux.Handle("/", getWebHandler())
 	mux.HandleFunc("/ts", tsHandler)
 
-	addr := os.Getenv("TS_TERM_ADDR")
-	if addr == "" {
-		addr = ":3000"
-	}
+	// Check for an auth key using a custom env variable.
+	//
+	// This allows the frontend and initial connection tsnet server
+	// to use a single-use auth key while the tsnet server(s) used for ssh
+	// continue to authenticate on demand.
+	authKey := os.Getenv("TS_TERM_AUTHKEY")
 
-	log.Printf("Serving ts-term on %v", addr)
-	log.Fatal(http.ListenAndServe(addr, mux))
+	// If an auth key was provided,
+	// serve the frontend and initial connection endpoint over tsnet.
+	// Otherwise, serve them over the host device.
+	if authKey != "" {
+		controlUrl := os.Getenv("TS_CONTROL_URL")
+		enableHttps := os.Getenv("ENABLE_HTTPS")
+
+		server := &tsnet.Server{
+			Hostname:   "term",
+			ControlURL: controlUrl,
+			AuthKey:    authKey,
+		}
+		defer server.Close()
+
+		var addr string
+		var listener net.Listener
+		var err error
+
+		if enableHttps == "true" {
+			log.Println("Enabling tsnet TLS. HTTPS Certificates must be enabled in the admin panel for this to work.")
+
+			addr = "https://term/"
+			listener, err = server.ListenTLS("tcp", ":443")
+		} else {
+			addr = "http://term/"
+			listener, err = server.Listen("tcp", ":80")
+		}
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.Printf("Serving ts-term on %v", addr)
+		log.Fatal(http.Serve(listener, mux))
+	} else {
+		addr := os.Getenv("TS_TERM_ADDR")
+		if addr == "" {
+			addr = ":3000"
+		}
+
+		log.Printf("Serving ts-term on %v", addr)
+		log.Fatal(http.ListenAndServe(addr, mux))
+	}
 }
 
 func getWebHandler() http.Handler {

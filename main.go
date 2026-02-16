@@ -122,7 +122,7 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 	ws.PingConn(conn, 3*time.Second)
 
 	log.Println("Polling status...")
-	if err := pollStatus(r, server, client, conn); err != nil {
+	if err := pollStatus(r, server, client, &hub); err != nil {
 		log.Printf("poll status: %v", err)
 		return
 	}

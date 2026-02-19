@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -94,13 +93,18 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer server.Close()
 
-	tsAddr := ":80"
-	if strings.HasPrefix(r.Header["Origin"][0], "https:") {
-		tsAddr = ":443"
-	}
+	var listener net.Listener
 
 	log.Printf("Creating tsnet server %q...", hostname)
-	listener, err := server.Listen("tcp", tsAddr)
+
+	if strings.HasPrefix(r.Header["Origin"][0], "https:") {
+		log.Println("Enabling tsnet TLS. HTTPS Certificates must be enabled in the admin panel for this to work.")
+
+		listener, err = server.ListenTLS("tcp", ":443")
+	} else {
+		listener, err = server.Listen("tcp", ":80")
+	}
+
 	if err != nil {
 		log.Printf("ts listener: %v", err)
 		return
@@ -114,19 +118,11 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if tsAddr == ":443" {
-		log.Println("Enabling tsnet TLS. HTTPS Certificates must be enabled in the admin panel for this to work.")
-
-		listener = tls.NewListener(listener, &tls.Config{
-			GetCertificate: client.GetCertificate,
-		})
-	}
-
 	log.Println("Starting ping...")
 	ws.PingConn(conn, 3*time.Second)
 
 	log.Println("Polling status...")
-	if err := pollStatus(r, server, client, conn); err != nil {
+	if err := pollStatus(r, server, client, &hub); err != nil {
 		log.Printf("poll status: %v", err)
 		return
 	}
@@ -157,7 +153,7 @@ func tsHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("Awaiting ssh config...")
 	// Await the ssh config info
-	respMsg, err := hub.AwaitMsg(ws.MessageSshCfg, 0)
+	respMsg, err := hub.AwaitMsg(ws.MessageSshCfg, 10*time.Minute)
 	if err != nil {
 		log.Printf("%v await ssh cfg: %v", hostname, err)
 		return

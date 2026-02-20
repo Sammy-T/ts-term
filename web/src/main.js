@@ -24,8 +24,6 @@ const toggleScroll = document.querySelector('#toggle-scroll');
 /** @type {HTMLDivElement} */
 const termContainer = document.querySelector('#xterm-container');
 
-const termScreen = termContainer.querySelector('.xterm-screen');
-
 /** @type {HTMLElement} */
 const termView = document.querySelector('#term-view');
 
@@ -463,6 +461,9 @@ term.loadAddon(fitAddon);
 term.loadAddon(new WebLinksAddon());
 term.open(termContainer);
 fitAddon.fit();
+
+// It should be safe to get the screen here after opening the terminal in the container
+const termScreen = termContainer.querySelector('.xterm-screen');
 
 /** @type {Number} */
 let tid;

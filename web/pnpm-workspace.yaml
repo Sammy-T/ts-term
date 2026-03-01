@@ -1,2 +1,5 @@
 onlyBuiltDependencies:
   - esbuild
+
+overrides:
+  rollup@>=4.0.0 <4.59.0: '>=4.59.0'

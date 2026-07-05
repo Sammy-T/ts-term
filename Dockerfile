@@ -24,6 +24,7 @@ FROM base-node AS deps-node
 # into this layer.
 RUN --mount=type=bind,source=web/package.json,target=package.json \
     --mount=type=bind,source=web/pnpm-lock.yaml,target=pnpm-lock.yaml \
+    --mount=type=bind,source=web/pnpm-workspace.yaml,target=pnpm-workspace.yaml \
     --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --prod --frozen-lockfile
 
@@ -35,6 +36,7 @@ FROM deps-node AS build-node
 # "devDependencies" to be installed to build. If you don't need this, remove this step.
 RUN --mount=type=bind,source=web/package.json,target=package.json \
     --mount=type=bind,source=web/pnpm-lock.yaml,target=pnpm-lock.yaml \
+    --mount=type=bind,source=web/pnpm-workspace.yaml,target=pnpm-workspace.yaml \
     --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 

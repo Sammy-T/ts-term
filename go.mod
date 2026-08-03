@@ -7,7 +7,7 @@ require (
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/joho/godotenv v1.5.1
 	golang.org/x/crypto v0.54.0
-	tailscale.com v1.102.0
+	tailscale.com v1.102.1
 )
 
 require (

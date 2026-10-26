@@ -2,7 +2,7 @@
 
 ARG NODE_VERSION=24.14.1
 ARG PNPM_VERSION=12.9.1
-ARG GO_VERSION=1.26.6
+ARG GO_VERSION=1.27.1
 
 ## Node
 ################################################################################
